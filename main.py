@@ -8,16 +8,17 @@ from spytools.utils import *
 from spytools.strategies import str1
 from indicators.candlesticks import bullish_pin_bar, bearish_pin_bar, bullish_pib_pattern, bearish_pib_pattern
 from indicators.price_action import *
+
 path = "data\\lib\\"
 
-
 if __name__ == "__main__":
-    pd.set_option('display.max_rows', None)
-    pd.set_option('display.max_columns', None)
+    # pd.set_option('display.max_rows', None)
+    # pd.set_option('display.max_columns', None)
 
-    df = pd.read_csv(path + 'A.csv', index_col='date', parse_dates=True)
+    a = pd.read_csv(path + 'A.csv', index_col='date', parse_dates=True)
+    amzn = pd.read_csv(path + 'AMZN.csv', index_col='date', parse_dates=True)
 
-    # print(df)
+    d = {'A': a, 'AMZN': amzn}
 
 
     def setup_search(pattern, data):
@@ -37,23 +38,48 @@ if __name__ == "__main__":
         Patterns should (but don't have to) be provided in chronological order. One day can have several conditions
         (separate tuple for each condition)
         """
+        r = {}  # results
+
         if isinstance(pattern, list):
-            shifts = [p[0] for p in pattern]
-            arr = pd.DataFrame()
-            for i in range(0, len(pattern)):
-                day, func, index = pattern[i]
-                arr[shifts[i]] = func(data).shift(-day)
-            arr['all'] = arr.T.all()
-            arr = arr.loc[arr['all']]
-            print(arr)
+
+            for s, df in data.items():  # s = symbol
+
+                signals = pd.DataFrame()
+
+                for i, element in enumerate(pattern):
+                    delta_days, func, index = element  # how will funcs with arguments be handled?
+                    signals[delta_days] = func(df).shift(-delta_days)
+
+                cds = signals.loc[signals.T.all()].index.values  # cds = completion days of pattern (=0)
+
+                r[s] = pd.DataFrame(data={'cd': cds,
+                                          'symbol': s,
+                                          'ep': df.shift(-1).loc[cds, 'open'],  # entry price
+                                          '+1c': df.shift(-1).loc[cds, 'close'],
+                                          '+1c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-1).loc[cds, 'close'],
+                                          '+2o': df.shift(-2).loc[cds, 'open'],
+                                          '+2o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[cds, 'open'],
+                                          '+2c': df.shift(-2).loc[cds, 'close'],
+                                          '+2c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[cds, 'close'],
+                                          '+3o': df.shift(-3).loc[cds, 'open'],
+                                          '+3o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[cds, 'open'],
+                                          '+3c': df.shift(-3).loc[cds, 'close'],
+                                          '+3c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[cds, 'close']
+                                          }
+                                    )
+
+            print(pd.concat(r, ignore_index=True))
+            pd.concat(r, ignore_index=True).to_csv('pattern_stats.csv')
 
 
-    setup_search(pattern=[(-2, gap_down_wick, False), (-1, gap_down_wick, False), (0, gap_down_wick, False)], data=df)
+    bt = BackTest(data_path='data\\lib\\', start_date=dt.datetime(2020, 1, 1), end_date=dt.datetime(2021, 12, 24),
+                  lag=dt.timedelta(days=0), runtime_messages=True, date_range_messages=False)
+
+    setup_search(pattern=[(-2, gap_down_wick, False), (-1, gap_down_wick, False), (0, gap_down_wick, False)],
+                 data=bt.input_data)
 
     exit()
 
-    bt = BackTest(data_path='data\\lib\\', start_date=dt.datetime(2020, 1, 1), end_date=dt.datetime(2021, 12, 24),
-                  lag=dt.timedelta(days=200), runtime_messages=True, date_range_messages=False)
 
     # print(bullish_pin_bar(bt.input_data['ILMN']))
 
@@ -66,11 +92,3 @@ if __name__ == "__main__":
     # s = "bbands(df)"
     # n = 1000
     # print(timeit.timeit(stmt=s, setup=se, number=n, globals=globals())/n)
-
-
-
-
-
-
-
-

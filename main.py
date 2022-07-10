@@ -3,6 +3,7 @@ from distutils.dir_util import copy_tree
 import pandas as pd
 import numpy as np
 import datetime as dt
+import openpyxl
 from spytools.backtest import BackTest
 from spytools.utils import *
 from spytools.strategies import str1
@@ -55,30 +56,40 @@ if __name__ == "__main__":
                 r[s] = pd.DataFrame(data={'cd': cds,
                                           'symbol': s,
                                           'ep': df.shift(-1).loc[cds, 'open'],  # entry price
-                                          '+1c': df.shift(-1).loc[cds, 'close'],
-                                          '+1c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-1).loc[cds, 'close'],
-                                          '+2o': df.shift(-2).loc[cds, 'open'],
-                                          '+2o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[cds, 'open'],
-                                          '+2c': df.shift(-2).loc[cds, 'close'],
-                                          '+2c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[cds, 'close'],
-                                          '+3o': df.shift(-3).loc[cds, 'open'],
-                                          '+3o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[cds, 'open'],
-                                          '+3c': df.shift(-3).loc[cds, 'close'],
-                                          '+3c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[cds, 'close']
+                                          'c': df.shift(-1).loc[cds, 'close'],
+                                          'c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-1).loc[cds, 'close'],
+                                          '+1o': df.shift(-2).loc[cds, 'open'],
+                                          '+1o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[cds, 'open'],
+                                          '+1c': df.shift(-2).loc[cds, 'close'],
+                                          '+1c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[cds, 'close'],
+                                          '+2o': df.shift(-3).loc[cds, 'open'],
+                                          '+2o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[cds, 'open'],
+                                          '+2c': df.shift(-3).loc[cds, 'close'],
+                                          '+2c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[cds, 'close']
                                           }
                                     )
 
-            print(pd.concat(r, ignore_index=True))
-            pd.concat(r, ignore_index=True).to_csv('pattern_stats.csv')
+            data = pd.concat(r, ignore_index=True).sort_values(by='cd')
+            data.dropna(inplace=True)
+
+            cols = [('c', 'c_gt_ep'), ('+1o', '+1o_gt_ep'), ('+1c', '+1c_gt_ep'), ('+2o', '+2o_gt_ep'), ('+2c', '+2c_gt_ep')]
+            stats = {}
+            for price_col, count_col in cols:
+                f, t = data[count_col].value_counts().sort_index().tolist()
+                stats[count_col] = [f'True: {t}', f'False: {f}', f'Rate: {round((t / (f+t) * 100), 2)}']
+
+            with pd.ExcelWriter('pattern_stats.xlsx') as writer:
+                data.to_excel(writer, sheet_name='data', index=False)
+                pd.DataFrame(data=stats).to_excel(writer, sheet_name='stats')
 
 
-    bt = BackTest(data_path='data\\lib\\', start_date=dt.datetime(2020, 1, 1), end_date=dt.datetime(2021, 12, 24),
+    bt = BackTest(data_path='data\\lib\\', start_date=dt.datetime(2015, 1, 1), end_date=dt.datetime(2022, 6, 1),
                   lag=dt.timedelta(days=0), runtime_messages=True, date_range_messages=False)
 
     setup_search(pattern=[(-2, gap_down_wick, False), (-1, gap_down_wick, False), (0, gap_down_wick, False)],
                  data=bt.input_data)
 
-    exit()
+
 
 
     # print(bullish_pin_bar(bt.input_data['ILMN']))

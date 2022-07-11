@@ -19,7 +19,7 @@ if __name__ == "__main__":
     a = pd.read_csv(path + 'A.csv', index_col='date', parse_dates=True)
     amzn = pd.read_csv(path + 'AMZN.csv', index_col='date', parse_dates=True)
 
-    d = {'A': a, 'AMZN': amzn}
+    k = {'A': a, 'AMZN': amzn}
 
 
     def setup_search(pattern, data):
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         Patterns should (but don't have to) be provided in chronological order. One day can have several conditions
         (separate tuple for each condition)
         """
-        r = {}  # results
+        results = {}
 
         if isinstance(pattern, list):
 
@@ -53,44 +53,77 @@ if __name__ == "__main__":
 
                 cds = signals.loc[signals.T.all()].index.values  # cds = completion days of pattern (=0)
 
-                r[s] = pd.DataFrame(data={'cd': cds,
-                                          'symbol': s,
-                                          'ep': df.shift(-1).loc[cds, 'open'],  # entry price
-                                          'c': df.shift(-1).loc[cds, 'close'],
-                                          'c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-1).loc[cds, 'close'],
-                                          '+1o': df.shift(-2).loc[cds, 'open'],
-                                          '+1o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[cds, 'open'],
-                                          '+1c': df.shift(-2).loc[cds, 'close'],
-                                          '+1c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[cds, 'close'],
-                                          '+2o': df.shift(-3).loc[cds, 'open'],
-                                          '+2o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[cds, 'open'],
-                                          '+2c': df.shift(-3).loc[cds, 'close'],
-                                          '+2c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[cds, 'close']
-                                          }
-                                    )
+                results[s] = pd.DataFrame(data={'cd': cds,
+                                                'symbol': s,
+                                                'ep': df.shift(-1).loc[cds, 'open'],  # entry price
+                                                'c': df.shift(-1).loc[cds, 'close'],
+                                                'c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-1).loc[
+                                                    cds, 'close'],
+                                                '+1o': df.shift(-2).loc[cds, 'open'],
+                                                '+1o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[
+                                                    cds, 'open'],
+                                                '+1c': df.shift(-2).loc[cds, 'close'],
+                                                '+1c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[
+                                                    cds, 'close'],
+                                                '+2o': df.shift(-3).loc[cds, 'open'],
+                                                '+2o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[
+                                                    cds, 'open'],
+                                                '+2c': df.shift(-3).loc[cds, 'close'],
+                                                '+2c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[
+                                                    cds, 'close']
+                                                }
+                                          )
 
-            data = pd.concat(r, ignore_index=True).sort_values(by='cd')
-            data.dropna(inplace=True)
+            d = pd.concat(results, ignore_index=True).sort_values(by='cd')
+            d.dropna(inplace=True)
 
-            cols = [('c', 'c_gt_ep'), ('+1o', '+1o_gt_ep'), ('+1c', '+1c_gt_ep'), ('+2o', '+2o_gt_ep'), ('+2c', '+2c_gt_ep')]
-            stats = {}
+            # implement random samples!
+            cols = [('c', 'c_gt_ep'), ('+1o', '+1o_gt_ep'), ('+1c', '+1c_gt_ep'), ('+2o', '+2o_gt_ep'),
+                    ('+2c', '+2c_gt_ep')]
+            stats = {'metric': ['T count:',
+                                'F count:',
+                                'T %:',
+                                'Avg. % change:',
+                                'Med. % change:',
+                                'T avg. % change:',
+                                'T med. % change:',
+                                'T % change min:',
+                                'T % change max:',
+                                'F avg. % change:',
+                                'F med. % change:',
+                                'F % change min:',
+                                'F % change max:',
+                                ]}
             for price_col, count_col in cols:
-                f, t = data[count_col].value_counts().sort_index().tolist()
-                stats[count_col] = [f'True: {t}', f'False: {f}', f'Rate: {round((t / (f+t) * 100), 2)}']
+                fc, tc = d[count_col].value_counts().sort_index().tolist()
+                pct_change = ((d[price_col] / d['ep']) - 1) * 100
+                t_pct_change = ((d.loc[d[count_col], price_col] / d.loc[d[count_col], 'ep']) - 1) * 100
+                f_pct_change = ((d.loc[~d[count_col], price_col] / d.loc[~d[count_col], 'ep']) - 1) * 100
+                stats[count_col] = [tc,
+                                    fc,
+                                    round((tc / (fc + tc) * 100), 2),
+                                    round(pct_change.mean(), 2),
+                                    round(pct_change.median(), 2),
+                                    round(t_pct_change.mean(), 2),
+                                    round(t_pct_change.median(), 2),
+                                    round(t_pct_change.min(), 2),
+                                    round(t_pct_change.max(), 2),
+                                    round(f_pct_change.mean(), 2),
+                                    round(f_pct_change.median(), 2),
+                                    round(f_pct_change.min(), 2),
+                                    round(f_pct_change.max(), 2)
+                                    ]
 
             with pd.ExcelWriter('pattern_stats.xlsx') as writer:
-                data.to_excel(writer, sheet_name='data', index=False)
-                pd.DataFrame(data=stats).to_excel(writer, sheet_name='stats')
+                d.to_excel(writer, sheet_name='data', index=False)
+                pd.DataFrame(data=stats).to_excel(writer, sheet_name='stats', index=False)
 
 
-    bt = BackTest(data_path='data\\lib\\', start_date=dt.datetime(2015, 1, 1), end_date=dt.datetime(2022, 6, 1),
+    bt = BackTest(data_path='data\\lib\\', start_date=dt.datetime(2020, 1, 1), end_date=dt.datetime(2022, 6, 1),
                   lag=dt.timedelta(days=0), runtime_messages=True, date_range_messages=False)
 
     setup_search(pattern=[(-2, gap_down_wick, False), (-1, gap_down_wick, False), (0, gap_down_wick, False)],
-                 data=bt.input_data)
-
-
-
+                 d=bt.input_data)
 
     # print(bullish_pin_bar(bt.input_data['ILMN']))
 

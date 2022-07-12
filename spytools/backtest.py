@@ -298,7 +298,7 @@ class BackTest:
 
                 for i, element in enumerate(pattern):
                     delta_days, func, index = element  # how will funcs with arguments be handled?
-                    signals[delta_days] = func(df).shift(-delta_days)
+                    signals[i] = func(df).shift(-delta_days)
 
                 cds = signals.loc[signals.T.all()].index.values  # cds = completion days of pattern (=0)
 
@@ -324,6 +324,10 @@ class BackTest:
                                                )
 
             d = pd.concat(results, ignore_index=True).sort_values(by='cd')
+            if len(d.index) == 0:
+                print(d)
+                print('No instances of pattern found!')
+                exit()
             d.dropna(inplace=True)
             rnd = pd.DataFrame.from_dict(random_results, orient='index').sort_values(by='cd')
             rnd.dropna(inplace=True)

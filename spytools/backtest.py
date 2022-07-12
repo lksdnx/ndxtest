@@ -163,6 +163,7 @@ class BackTest:
         self.dr, self.edr = pd.date_range(start_date, end_date), pd.date_range(start_date - lag, end_date)
         self.trading_days = None
 
+        # task: specify dtypes for all columns
         float32_cols = {'open': np.float32, 'high': np.float32, 'low': np.float32, 'close': np.float32}
 
         self.input_data = {}
@@ -194,6 +195,7 @@ class BackTest:
         self.opt, self.optimization_results, self.best_parameters = False, None, None
         self.parameters, self.parameter_permutations = {}, []
 
+        # task find more elegant solution with os.iterdir
         self.data_path_symbols = [str(file)[len(data_path):-4]
                                   for file in Path(data_path).glob('*.csv') if '^' not in str(file)]
 
@@ -269,6 +271,7 @@ class BackTest:
 
             results, random_results = {}, {}
 
+            # generating random results
             for i, symbol in enumerate(random.choices(list(self.input_data.keys()), k=1000)):
                 df = self.input_data[symbol]
                 cd = random.choice(df.index.values)
@@ -292,13 +295,18 @@ class BackTest:
                                          cd, 'close']
                                      }
 
+            # generating results based on the input pattern
             for symbol, df in self.input_data.items():
 
                 signals = pd.DataFrame()
 
                 for i, element in enumerate(pattern):
                     delta_days, func, index = element  # how will funcs with arguments be handled?
-                    signals[i] = func(df).shift(-delta_days)
+                    if not index:
+                        # task find more elegant way of column naming?
+                        signals[i] = func(df).shift(-delta_days)
+                    else:
+                        signals[i] = func(self.input_benchmark).shift(-delta_days)
 
                 cds = signals.loc[signals.T.all()].index.values  # cds = completion days of pattern (=0)
 
@@ -320,95 +328,94 @@ class BackTest:
                                                      '+2c': df.shift(-3).loc[cds, 'close'],
                                                      '+2c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[
                                                          cds, 'close']
-                                                     }
-                                               )
+                                                     })
 
             d = pd.concat(results, ignore_index=True).sort_values(by='cd')
             if len(d.index) == 0:
-                print(d)
                 print('No instances of pattern found!')
-                exit()
-            d.dropna(inplace=True)
-            rnd = pd.DataFrame.from_dict(random_results, orient='index').sort_values(by='cd')
-            rnd.dropna(inplace=True)
+            else:
+                d.dropna(inplace=True)
+                rnd = pd.DataFrame.from_dict(random_results, orient='index').sort_values(by='cd')
+                rnd.dropna(inplace=True)
 
-            cols = [('c', 'c_gt_ep'), ('+1o', '+1o_gt_ep'), ('+1c', '+1c_gt_ep'), ('+2o', '+2o_gt_ep'),
-                    ('+2c', '+2c_gt_ep')]
-            stats = {'metric': ['T count:',
-                                'F count:',
-                                'T %:',
-                                'Avg. % change:',
-                                'Med. % change:',
-                                'T avg. % change:',
-                                'T med. % change:',
-                                'T % change min:',
-                                'T % change max:',
-                                'F avg. % change:',
-                                'F med. % change:',
-                                'F % change min:',
-                                'F % change max:',
-                                ]}
-            rnd_stats = {'metric': ['T count:',
+                cols = [('c', 'c_gt_ep'), ('+1o', '+1o_gt_ep'), ('+1c', '+1c_gt_ep'), ('+2o', '+2o_gt_ep'),
+                        ('+2c', '+2c_gt_ep')]
+                stats = {'metric': ['Total count:',
+                                    'T count:',
                                     'F count:',
                                     'T %:',
+                                    'F %:',
                                     'Avg. % change:',
                                     'Med. % change:',
+                                    'Std. %:',
                                     'T avg. % change:',
                                     'T med. % change:',
+                                    'T std. %:',
                                     'T % change min:',
                                     'T % change max:',
                                     'F avg. % change:',
                                     'F med. % change:',
+                                    'F std. %:',
                                     'F % change min:',
                                     'F % change max:',
                                     ]}
 
-            # making stats from the experimental data
-            for price_col, count_col in cols:
-                fc, tc = d[count_col].value_counts().sort_index().tolist()
-                pct_change = ((d[price_col] / d['ep']) - 1) * 100
-                t_pct_change = ((d.loc[d[count_col], price_col] / d.loc[d[count_col], 'ep']) - 1) * 100
-                f_pct_change = ((d.loc[~d[count_col], price_col] / d.loc[~d[count_col], 'ep']) - 1) * 100
-                stats[count_col] = [tc,
-                                    fc,
-                                    round((tc / (fc + tc) * 100), 2),
-                                    round(pct_change.mean(), 2),
-                                    round(pct_change.median(), 2),
-                                    round(t_pct_change.mean(), 2),
-                                    round(t_pct_change.median(), 2),
-                                    round(t_pct_change.min(), 2),
-                                    round(t_pct_change.max(), 2),
-                                    round(f_pct_change.mean(), 2),
-                                    round(f_pct_change.median(), 2),
-                                    round(f_pct_change.min(), 2),
-                                    round(f_pct_change.max(), 2)
-                                    ]
-            # making stats from random data
-            stats[' '] = ''  # a spaceholder
-            for price_col, count_col in cols:
-                fc, tc = rnd[count_col].value_counts().sort_index().tolist()
-                pct_change = ((rnd[price_col] / rnd['ep']) - 1) * 100
-                t_pct_change = ((rnd.loc[rnd[count_col], price_col] / rnd.loc[rnd[count_col], 'ep']) - 1) * 100
-                f_pct_change = ((rnd.loc[~rnd[count_col], price_col] / rnd.loc[~rnd[count_col], 'ep']) - 1) * 100
-                stats[count_col + '_rnd'] = [tc,
-                                             fc,
-                                             round((tc / (fc + tc) * 100), 2),
-                                             round(pct_change.mean(), 2),
-                                             round(pct_change.median(), 2),
-                                             round(t_pct_change.mean(), 2),
-                                             round(t_pct_change.median(), 2),
-                                             round(t_pct_change.min(), 2),
-                                             round(t_pct_change.max(), 2),
-                                             round(f_pct_change.mean(), 2),
-                                             round(f_pct_change.median(), 2),
-                                             round(f_pct_change.min(), 2),
-                                             round(f_pct_change.max(), 2)
-                                             ]
+                # making stats from the experimental data
+                for price_col, count_col in cols:
+                    fc, tc = d[count_col].value_counts().sort_index().tolist()
+                    pct_change = ((d[price_col] / d['ep']) - 1) * 100
+                    t_pct_change = ((d.loc[d[count_col], price_col] / d.loc[d[count_col], 'ep']) - 1) * 100
+                    f_pct_change = ((d.loc[~d[count_col], price_col] / d.loc[~d[count_col], 'ep']) - 1) * 100
+                    stats[count_col] = [tc + fc,
+                                        tc,
+                                        fc,
+                                        round((tc / (fc + tc) * 100), 2),
+                                        round((fc / (fc + tc) * 100), 2),
+                                        round(pct_change.mean(), 2),
+                                        round(pct_change.median(), 2),
+                                        round(pct_change.std(ddof=1), 2),
+                                        round(t_pct_change.mean(), 2),
+                                        round(t_pct_change.median(), 2),
+                                        round(t_pct_change.std(ddof=1), 2),
+                                        round(t_pct_change.min(), 2),
+                                        round(t_pct_change.max(), 2),
+                                        round(f_pct_change.mean(), 2),
+                                        round(f_pct_change.median(), 2),
+                                        round(f_pct_change.std(ddof=1), 2),
+                                        round(f_pct_change.min(), 2),
+                                        round(f_pct_change.max(), 2)
+                                        ]
+                # making stats from random data
+                stats[' '] = ''  # a spaceholder
+                for price_col, count_col in cols:
+                    fc, tc = rnd[count_col].value_counts().sort_index().tolist()
+                    pct_change = ((rnd[price_col] / rnd['ep']) - 1) * 100
+                    t_pct_change = ((rnd.loc[rnd[count_col], price_col] / rnd.loc[rnd[count_col], 'ep']) - 1) * 100
+                    f_pct_change = ((rnd.loc[~rnd[count_col], price_col] / rnd.loc[~rnd[count_col], 'ep']) - 1) * 100
+                    stats[count_col + '_rnd'] = [tc + fc,
+                                                 tc,
+                                                 fc,
+                                                 round((tc / (fc + tc) * 100), 2),
+                                                 round((fc / (fc + tc) * 100), 2),
+                                                 round(pct_change.mean(), 2),
+                                                 round(pct_change.median(), 2),
+                                                 round(pct_change.std(ddof=1), 2),
+                                                 round(t_pct_change.mean(), 2),
+                                                 round(t_pct_change.median(), 2),
+                                                 round(t_pct_change.std(ddof=1), 2),
+                                                 round(t_pct_change.min(), 2),
+                                                 round(t_pct_change.max(), 2),
+                                                 round(f_pct_change.mean(), 2),
+                                                 round(f_pct_change.median(), 2),
+                                                 round(f_pct_change.std(ddof=1), 2),
+                                                 round(f_pct_change.min(), 2),
+                                                 round(f_pct_change.max(), 2)
+                                                 ]
 
-            with pd.ExcelWriter('pattern_stats.xlsx') as writer:
-                d.to_excel(writer, sheet_name='pattern', index=False)
-                rnd.to_excel(writer, sheet_name='random', index=False)
-                pd.DataFrame(data=stats).to_excel(writer, sheet_name='stats_pattern_vs_random', index=False)
+                with pd.ExcelWriter('pattern_stats.xlsx') as writer:
+                    d.to_excel(writer, sheet_name='pattern', index=False)
+                    rnd.to_excel(writer, sheet_name='random', index=False)
+                    pd.DataFrame(data=stats).to_excel(writer, sheet_name='stats_pattern_vs_random', index=False)
 
     def generate_signals(self, strategy, parameters=None):
         """Write proper docstring!"""

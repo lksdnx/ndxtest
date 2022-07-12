@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 import datetime as dt
 import pandas as pd

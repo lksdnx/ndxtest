@@ -11,6 +11,7 @@ from spytools.utils import constituents
 import time
 import datetime as dt
 import mplfinance as mpf
+import random
 import seaborn as sns
 from fpdf import FPDF
 
@@ -96,13 +97,13 @@ class Portfolio:
     def create_log_df(self):
         return pd.DataFrame.from_dict(data=self.logdict, orient='index').round(2)
 
-    def long(self, data):                                                                                   # closing short position has priority
+    def long(self, data):  # closing short position has priority
         if data['symbol'] in self.short_positions.keys():
             nshares = self.short_positions[data['symbol']]['nshares']
             entry_value = self.cash_from_short_positions[data['symbol']]
             current_value = -nshares * data['exit_price']
 
-            self.cash += entry_value - current_value                                                        # subtracting the P/L on the cash side
+            self.cash += entry_value - current_value  # subtracting the P/L on the cash side
             self.cash -= abs(self.commission * nshares * data['exit_price'])
             self.commission_paid += abs(self.commission * nshares * data['exit_price'])
             self.invested_capital -= (nshares * data['exit_price']) - (entry_value - current_value)
@@ -112,31 +113,32 @@ class Portfolio:
                 self.create_log_entry(entry_data=self.short_positions[data['symbol']], exit_data=data)
 
             del self.short_positions[data['symbol']]
-        else:                                                                                               # entering a new long position
+        else:  # entering a new long position
             if self.free_slot():
                 self.number_of_trades += 1
                 data['id'] = self.number_of_trades
                 self.long_positions[data['symbol']] = data
 
-                self.cash -= (data['nshares'] * data['entry_price']) + (self.commission * data['nshares'] * data['entry_price'])
+                self.cash -= (data['nshares'] * data['entry_price']) + (
+                        self.commission * data['nshares'] * data['entry_price'])
                 self.commission_paid += self.commission * data['nshares'] * data['entry_price']
                 self.invested_capital += data['nshares'] * data['entry_price']
                 self.logdict[f"{data['entry_date']} {data['symbol']}"] = \
                     self.create_log_entry(entry_data=self.long_positions[data['symbol']])
 
-    def short(self, data):                                                                                  # closing long position has priority
+    def short(self, data):  # closing long position has priority
         if data['symbol'] in self.long_positions.keys():
             entry_price = self.long_positions[data['symbol']]['entry_price']
             nshares = self.long_positions[data['symbol']]['nshares']
 
             self.cash += (nshares * data['exit_price']) - (self.commission * nshares * data['exit_price'])
             self.commission_paid += self.commission * nshares * data['exit_price']
-            self.invested_capital -= nshares * (entry_price - data['exit_price'])                           # subtracting the P/L
+            self.invested_capital -= nshares * (entry_price - data['exit_price'])  # subtracting the P/L
             self.invested_capital -= nshares * data['exit_price']
             self.logdict[f"{data['exit_date']} {data['symbol']}"] = \
                 self.create_log_entry(entry_data=self.long_positions[data['symbol']], exit_data=data)
             del self.long_positions[data['symbol']]
-        else:                                                                                               # entering a new short position
+        else:  # entering a new short position
             if self.free_slot():
                 self.number_of_trades += 1
                 data['id'] = self.number_of_trades
@@ -245,16 +247,164 @@ class BackTest:
                     if date in self.constituents[k]['dr']:
                         print(f'Data for {k} is missing the record for {date}.')
 
-    def scan_for_setups(self, *patterns):
-        self.alerts = []
-        print('Start')
-        print(patterns)
-        for key, df in self.input_data.items():
-            for pattern in patterns:
-                bool_array = pattern(df)
-                if any(bool_array[-5:]):
-                    print(bool_array[-5:])
-                    self.alerts.append(key)
+    def setup_search(self, pattern):
+        """This function searches the input_data for certain patterns that represent buy or sell signals.
+        The pattern parameter is a list of conditions that have to be met in order to generate a signal in the
+        following general format:
+        [(-n, cond, False), ..., (-1, cond, False), (0, cond, False), (1, cond, True)]
+        Wherein: 0 represents the day of signal completion, 1 represents the day of signal execution
+        (buy/sell transaction), -1 represents one time period (day) prior to the signal completion and so on.
+        cond represent conditions that have to be met. 'False' means that the condition has to be met in the
+        respective ticker symbol. 'True' means that the condition has to be met in the ^GSPC (S&P 500) index.
+        As an example, the pattern:
+        [(-1, bullish_pin_bar(), False), (0, gap_up(), False), (1, gap_up(), True)]
+        Translates into: On day -1 a bullish pin bar has to form. On the day of signal completion the ticker symbol
+        has to gap up. On the day of transaction the index has to gap up. all(pattern) has to be True otherwise a
+        transaction is not triggered.
+        Patterns should (but don't have to) be provided in chronological order. One day can have several conditions
+        (separate tuple for each condition)
+        """
+
+        if isinstance(pattern, list):
+
+            results, random_results = {}, {}
+
+            for i, symbol in enumerate(random.choices(list(self.input_data.keys()), k=1000)):
+                df = self.input_data[symbol]
+                cd = random.choice(df.index.values)
+                random_results[i] = {'cd': cd,
+                                     'symbol': symbol,
+                                     'ep': df.shift(-1).loc[cd, 'open'],  # entry price
+                                     'c': df.shift(-1).loc[cd, 'close'],
+                                     'c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-1).loc[
+                                         cd, 'close'],
+                                     '+1o': df.shift(-2).loc[cd, 'open'],
+                                     '+1o_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-2).loc[
+                                         cd, 'open'],
+                                     '+1c': df.shift(-2).loc[cd, 'close'],
+                                     '+1c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-2).loc[
+                                         cd, 'close'],
+                                     '+2o': df.shift(-3).loc[cd, 'open'],
+                                     '+2o_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-3).loc[
+                                         cd, 'open'],
+                                     '+2c': df.shift(-3).loc[cd, 'close'],
+                                     '+2c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-3).loc[
+                                         cd, 'close']
+                                     }
+
+            for symbol, df in self.input_data.items():
+
+                signals = pd.DataFrame()
+
+                for i, element in enumerate(pattern):
+                    delta_days, func, index = element  # how will funcs with arguments be handled?
+                    signals[delta_days] = func(df).shift(-delta_days)
+
+                cds = signals.loc[signals.T.all()].index.values  # cds = completion days of pattern (=0)
+
+                results[symbol] = pd.DataFrame(data={'cd': cds,
+                                                     'symbol': symbol,
+                                                     'ep': df.shift(-1).loc[cds, 'open'],  # entry price
+                                                     'c': df.shift(-1).loc[cds, 'close'],
+                                                     'c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-1).loc[
+                                                         cds, 'close'],
+                                                     '+1o': df.shift(-2).loc[cds, 'open'],
+                                                     '+1o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[
+                                                         cds, 'open'],
+                                                     '+1c': df.shift(-2).loc[cds, 'close'],
+                                                     '+1c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[
+                                                         cds, 'close'],
+                                                     '+2o': df.shift(-3).loc[cds, 'open'],
+                                                     '+2o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[
+                                                         cds, 'open'],
+                                                     '+2c': df.shift(-3).loc[cds, 'close'],
+                                                     '+2c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[
+                                                         cds, 'close']
+                                                     }
+                                               )
+
+            d = pd.concat(results, ignore_index=True).sort_values(by='cd')
+            d.dropna(inplace=True)
+            rnd = pd.DataFrame.from_dict(random_results, orient='index').sort_values(by='cd')
+            rnd.dropna(inplace=True)
+
+            cols = [('c', 'c_gt_ep'), ('+1o', '+1o_gt_ep'), ('+1c', '+1c_gt_ep'), ('+2o', '+2o_gt_ep'),
+                    ('+2c', '+2c_gt_ep')]
+            stats = {'metric': ['T count:',
+                                'F count:',
+                                'T %:',
+                                'Avg. % change:',
+                                'Med. % change:',
+                                'T avg. % change:',
+                                'T med. % change:',
+                                'T % change min:',
+                                'T % change max:',
+                                'F avg. % change:',
+                                'F med. % change:',
+                                'F % change min:',
+                                'F % change max:',
+                                ]}
+            rnd_stats = {'metric': ['T count:',
+                                    'F count:',
+                                    'T %:',
+                                    'Avg. % change:',
+                                    'Med. % change:',
+                                    'T avg. % change:',
+                                    'T med. % change:',
+                                    'T % change min:',
+                                    'T % change max:',
+                                    'F avg. % change:',
+                                    'F med. % change:',
+                                    'F % change min:',
+                                    'F % change max:',
+                                    ]}
+
+            # making stats from the experimental data
+            for price_col, count_col in cols:
+                fc, tc = d[count_col].value_counts().sort_index().tolist()
+                pct_change = ((d[price_col] / d['ep']) - 1) * 100
+                t_pct_change = ((d.loc[d[count_col], price_col] / d.loc[d[count_col], 'ep']) - 1) * 100
+                f_pct_change = ((d.loc[~d[count_col], price_col] / d.loc[~d[count_col], 'ep']) - 1) * 100
+                stats[count_col] = [tc,
+                                    fc,
+                                    round((tc / (fc + tc) * 100), 2),
+                                    round(pct_change.mean(), 2),
+                                    round(pct_change.median(), 2),
+                                    round(t_pct_change.mean(), 2),
+                                    round(t_pct_change.median(), 2),
+                                    round(t_pct_change.min(), 2),
+                                    round(t_pct_change.max(), 2),
+                                    round(f_pct_change.mean(), 2),
+                                    round(f_pct_change.median(), 2),
+                                    round(f_pct_change.min(), 2),
+                                    round(f_pct_change.max(), 2)
+                                    ]
+            # making stats from random data
+            stats[' '] = ''  # a spaceholder
+            for price_col, count_col in cols:
+                fc, tc = rnd[count_col].value_counts().sort_index().tolist()
+                pct_change = ((rnd[price_col] / rnd['ep']) - 1) * 100
+                t_pct_change = ((rnd.loc[rnd[count_col], price_col] / rnd.loc[rnd[count_col], 'ep']) - 1) * 100
+                f_pct_change = ((rnd.loc[~rnd[count_col], price_col] / rnd.loc[~rnd[count_col], 'ep']) - 1) * 100
+                stats[count_col + '_rnd'] = [tc,
+                                             fc,
+                                             round((tc / (fc + tc) * 100), 2),
+                                             round(pct_change.mean(), 2),
+                                             round(pct_change.median(), 2),
+                                             round(t_pct_change.mean(), 2),
+                                             round(t_pct_change.median(), 2),
+                                             round(t_pct_change.min(), 2),
+                                             round(t_pct_change.max(), 2),
+                                             round(f_pct_change.mean(), 2),
+                                             round(f_pct_change.median(), 2),
+                                             round(f_pct_change.min(), 2),
+                                             round(f_pct_change.max(), 2)
+                                             ]
+
+            with pd.ExcelWriter('pattern_stats.xlsx') as writer:
+                d.to_excel(writer, sheet_name='pattern', index=False)
+                rnd.to_excel(writer, sheet_name='random', index=False)
+                pd.DataFrame(data=stats).to_excel(writer, sheet_name='stats_pattern_vs_random', index=False)
 
     def generate_signals(self, strategy, parameters=None):
         """Write proper docstring!"""
@@ -286,10 +436,11 @@ class BackTest:
                                       ((concat_data.entry_signals != 0) | (concat_data.exit_signals != 0))]
 
         for symbol, df in concat_data.groupby('symbol'):
-            df['entry_signals'] = df['entry_signals'].shift(1)                                  # trades will be executed on the next day
-            df['exit_signals'] = df['exit_signals'].shift(1)                                    # trades will be executed on the next day
-            df.loc[df.index[-1], ['entry_signals', 'exit_signals', 'score']] = [0, -2, 0]       # adding signals to exit on the last day
-            df.dropna(inplace=True)                                                             # dropping NaN values
+            df['entry_signals'] = df['entry_signals'].shift(1)  # trades will be executed on the next day
+            df['exit_signals'] = df['exit_signals'].shift(1)  # trades will be executed on the next day
+            df.loc[df.index[-1], ['entry_signals', 'exit_signals', 'score']] = [0, -2,
+                                                                                0]  # adding signals to exit on the last day
+            df.dropna(inplace=True)  # dropping NaN values
             dict_data[symbol] = df.loc[(df.entry_signals != 0) | (df.exit_signals != 0)]
 
         for date, df in pd.concat(dict_data.values()).groupby(level=0):
@@ -446,18 +597,21 @@ class BackTest:
                         'median_dur': self.log_df.duration.median(),
                         'min_dur': self.log_df.duration.min(),
                         'max_dur': self.log_df.duration.max(),
-                        '%profitable': (np.count_nonzero(self.log_df.profitable != 0) / len(self.log_df.profitable) * 100).__round__(2),
+                        '%profitable': (np.count_nonzero(self.log_df.profitable != 0) / len(
+                            self.log_df.profitable) * 100).__round__(2),
                         'commission_paid': p.commission_paid.__round__(2),
                         'perf': self.equity_curve_df['c%change'][-1],
                         'ann_perf': (((1 + ((self.equity_curve_df.close[-1] - initial_equity) / initial_equity))
                                       ** (1 / (self.duration.days / 365.25)) - 1) * 100).__round__(2),
                         'bm_perf': self.benchmark['c%change'][-1],
-                        'bm_ann_perf': (((1 + ((self.benchmark.close[-1] - self.benchmark.close[0]) / self.benchmark.close[0]))
+                        'bm_ann_perf': (((1 + (
+                                (self.benchmark.close[-1] - self.benchmark.close[0]) / self.benchmark.close[0]))
                                          ** (1 / (self.duration.days / 365.25)) - 1) * 100).__round__(2)}
 
         if self.runtime_messages:
             print(f'Finished:                                   ...{(time.time() - t1).__round__(2)} sec elapsed.')
-            print(f'Time per trading day:                       ...{((time.time() - t1) / len(self.trading_days) * 1000).__round__(2)} ms.')
+            print(
+                f'Time per trading day:                       ...{((time.time() - t1) / len(self.trading_days) * 1000).__round__(2)} ms.')
 
         self.runtime = (time.time() - self.tr).__round__(2)
         if self.runtime_messages:
@@ -487,7 +641,8 @@ class BackTest:
         self.parameter_permutations = [{k: v for (k, v) in zip(self.parameters.keys(), comb)} for comb in permutations]
 
         print(f'There are {len(self.parameter_permutations)} parameter combinations to run.')
-        print(f'Running the optimization will approximately take {(len(self.parameter_permutations) * self.runtime * 1.2).__round__(2)} seconds.')
+        print(
+            f'Running the optimization will approximately take {(len(self.parameter_permutations) * self.runtime * 1.2).__round__(2)} seconds.')
         if input(f'Proceed (Y/N): ').upper() == 'Y':
             self.runtime_messages = False
             s = []
@@ -512,12 +667,13 @@ class BackTest:
 
             combs = list(itertools.combinations(list(self.parameters.keys()), 2))
 
-            fig3, axs3 = plt.subplots(1, len(combs), figsize=(9, 9/len(combs)), gridspec_kw={"wspace": .5})
+            fig3, axs3 = plt.subplots(1, len(combs), figsize=(9, 9 / len(combs)), gridspec_kw={"wspace": .5})
             for i, combination in enumerate(combs):
                 hm = self.optimization_results.groupby(list(combination)).mean().unstack()
                 sns.heatmap(hm[::], annot=True, ax=axs3 if len(combs) == 1 else axs3[i], cmap='viridis')
                 mp = [p for p in list(self.parameters.keys()) if p not in combination]
-                axs3.title.set_text(f'Performance') if len(combs) == 1 else axs3[i].title.set_text(f'Mean of all {mp} runs.')
+                axs3.title.set_text(f'Performance') if len(combs) == 1 else axs3[i].title.set_text(
+                    f'Mean of all {mp} runs.')
 
             plt.savefig("output\\f3.png", dpi=None, facecolor='w', edgecolor='w')
 
@@ -538,14 +694,16 @@ class BackTest:
 
         fig1, axs1 = plt.subplots(3, 1, figsize=(9, 6))
         axs1[0].plot(self.benchmark['c%change'].index, self.benchmark['c%change'], color='blue', label='Benchmark')
-        axs1[0].plot(self.equity_curve_df['c%change'].index, self.equity_curve_df['c%change'], color='black', label='Backtest')
+        axs1[0].plot(self.equity_curve_df['c%change'].index, self.equity_curve_df['c%change'], color='black',
+                     label='Backtest')
         axs1[0].set_xticks([])
         axs1[0].set_xticklabels([])
         axs1[0].set_ylabel('Cumulative % Change')
         axs1[0].grid(axis='y')
         axs1[0].legend()
         axs1[1].plot(self.drawdown['daily'].index, self.drawdown['daily'], color='black', label='Drawdown')
-        axs1[1].plot(self.drawdown['daily_max'].index, self.drawdown['daily_max'], color='red', label='Max. 1Yr Drawndown')
+        axs1[1].plot(self.drawdown['daily_max'].index, self.drawdown['daily_max'], color='red',
+                     label='Max. 1Yr Drawndown')
         axs1[1].set_xticks([])
         axs1[1].set_xticklabels([])
         axs1[1].set_ylabel('1Yr Drawdown')
@@ -564,7 +722,8 @@ class BackTest:
 
         fig2, axs2 = plt.subplots(1, 3, figsize=(9, 3), gridspec_kw={"wspace": .5})
         main_corr = self.log_df[['entry_score', 'duration', 'entry_price', 'profitable']]
-        self.correlations['main_corr'] = pd.DataFrame(data=main_corr.corr()['profitable'], index=['entry_score', 'duration', 'entry_price', 'profitable'])
+        self.correlations['main_corr'] = pd.DataFrame(data=main_corr.corr()['profitable'],
+                                                      index=['entry_score', 'duration', 'entry_price', 'profitable'])
         axs2[0].title.set_text('General Correlations')
         sns.heatmap(self.correlations['main_corr'], annot=True, square=False, ax=axs2[0], cmap='viridis')
 
@@ -575,7 +734,8 @@ class BackTest:
         entry_corr['thu'] = self.log_df['entry_weekday'] == 4
         entry_corr['fri'] = self.log_df['entry_weekday'] == 5
         entry_corr['profitable'] = self.log_df['profitable']
-        self.correlations['entry_corr'] = pd.DataFrame(data=entry_corr.corr()['profitable'], index=['mon', 'tue', 'wed', 'thu', 'fri', 'profitable'])
+        self.correlations['entry_corr'] = pd.DataFrame(data=entry_corr.corr()['profitable'],
+                                                       index=['mon', 'tue', 'wed', 'thu', 'fri', 'profitable'])
         axs2[1].title.set_text('Entry Weekday Correlations')
         sns.heatmap(self.correlations['entry_corr'], annot=True, square=False, ax=axs2[1], cmap='viridis')
 
@@ -586,13 +746,14 @@ class BackTest:
         exit_corr['thu'] = self.log_df['exit_weekday'] == 4
         exit_corr['fri'] = self.log_df['exit_weekday'] == 5
         exit_corr['profitable'] = self.log_df['profitable']
-        self.correlations['exit_corr'] = pd.DataFrame(data=exit_corr.corr()['profitable'], index=['mon', 'tue', 'wed', 'thu', 'fri', 'profitable'])
+        self.correlations['exit_corr'] = pd.DataFrame(data=exit_corr.corr()['profitable'],
+                                                      index=['mon', 'tue', 'wed', 'thu', 'fri', 'profitable'])
         axs2[2].title.set_text('Exit Weekday Correlations')
         sns.heatmap(self.correlations['exit_corr'], annot=True, square=False, ax=axs2[2], cmap='viridis')
 
         plt.savefig("output\\f2.png", dpi=None, facecolor='w', edgecolor='w')
 
-        class PDF(FPDF):    # A4: w = 210, h = 297
+        class PDF(FPDF):  # A4: w = 210, h = 297
             pass
 
         pdf = PDF()
@@ -650,7 +811,7 @@ class BackTest:
         if self.opt:
             pdf.cell(w=190, align='', txt=f"Optimization:")
             shape = img.imread('output\\f3.png').shape
-            pdf.image('output\\f3.png', x=10, y=20, w=shape[0]*(160/shape[0]), h=shape[1]*(160/shape[1]))
+            pdf.image('output\\f3.png', x=10, y=20, w=shape[0] * (160 / shape[0]), h=shape[1] * (160 / shape[1]))
 
         pdf.output('output\\test.pdf', 'F')
 

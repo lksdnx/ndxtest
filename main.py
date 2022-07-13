@@ -19,7 +19,7 @@ if __name__ == "__main__":
     # amzn = pd.read_csv(path + 'AMZN.csv', index_col='date', parse_dates=True)
     # k = {'A': a, 'AMZN': amzn}
 
-    bt = BackTest(data_path='data\\lib\\', start_date=dt.datetime(2021, 1, 1), end_date=dt.datetime(2022, 6, 1),
+    bt = BackTest(data_path='data\\lib\\', start_date=dt.datetime(2016, 1, 1), end_date=dt.datetime(2022, 6, 1),
                   lag=dt.timedelta(days=0), runtime_messages=True, date_range_messages=False)
 
     bt.setup_search(pattern=[(-2, gap_down_wick, False),

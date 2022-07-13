@@ -249,7 +249,7 @@ class BackTest:
                     if date in self.constituents[k]['dr']:
                         print(f'Data for {k} is missing the record for {date}.')
 
-    def setup_search(self, pattern):
+    def setup_search(self, pattern, run_sampling=True):
         """This function searches the input_data for certain patterns that represent buy or sell signals.
         The pattern parameter is a list of conditions that have to be met in order to generate a signal in the
         following general format:
@@ -271,31 +271,7 @@ class BackTest:
 
             results, random_results = {}, {}
 
-            # generating random results
-            for i, symbol in enumerate(random.choices(list(self.input_data.keys()), k=1000)):
-                df = self.input_data[symbol]
-                cd = random.choice(df.index.values)
-                random_results[i] = {'cd': cd,
-                                     'symbol': symbol,
-                                     'ep': df.shift(-1).loc[cd, 'open'],  # entry price
-                                     'c': df.shift(-1).loc[cd, 'close'],
-                                     'c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-1).loc[
-                                         cd, 'close'],
-                                     '+1o': df.shift(-2).loc[cd, 'open'],
-                                     '+1o_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-2).loc[
-                                         cd, 'open'],
-                                     '+1c': df.shift(-2).loc[cd, 'close'],
-                                     '+1c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-2).loc[
-                                         cd, 'close'],
-                                     '+2o': df.shift(-3).loc[cd, 'open'],
-                                     '+2o_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-3).loc[
-                                         cd, 'open'],
-                                     '+2c': df.shift(-3).loc[cd, 'close'],
-                                     '+2c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-3).loc[
-                                         cd, 'close']
-                                     }
-
-            # generating results based on the input pattern
+            # scanning for input pattern in symbol dfs
             for symbol, df in self.input_data.items():
 
                 signals = pd.DataFrame()
@@ -331,10 +307,35 @@ class BackTest:
                                                      })
 
             d = pd.concat(results, ignore_index=True).sort_values(by='cd')
+
             if len(d.index) == 0:
                 print('No instances of pattern found!')
             else:
                 d.dropna(inplace=True)
+
+                # now generating random results
+                for i, symbol in enumerate(random.choices(list(self.input_data.keys()), k=1000)):
+                    df = self.input_data[symbol]
+                    cd = random.choice(df.index.values)
+                    random_results[i] = {'cd': cd,
+                                         'symbol': symbol,
+                                         'ep': df.shift(-1).loc[cd, 'open'],  # entry price
+                                         'c': df.shift(-1).loc[cd, 'close'],
+                                         'c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-1).loc[
+                                             cd, 'close'],
+                                         '+1o': df.shift(-2).loc[cd, 'open'],
+                                         '+1o_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-2).loc[
+                                             cd, 'open'],
+                                         '+1c': df.shift(-2).loc[cd, 'close'],
+                                         '+1c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-2).loc[
+                                             cd, 'close'],
+                                         '+2o': df.shift(-3).loc[cd, 'open'],
+                                         '+2o_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-3).loc[
+                                             cd, 'open'],
+                                         '+2c': df.shift(-3).loc[cd, 'close'],
+                                         '+2c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-3).loc[
+                                             cd, 'close']
+                                         }
                 rnd = pd.DataFrame.from_dict(random_results, orient='index').sort_values(by='cd')
                 rnd.dropna(inplace=True)
 
@@ -385,6 +386,7 @@ class BackTest:
                                         round(f_pct_change.min(), 2),
                                         round(f_pct_change.max(), 2)
                                         ]
+
                 # making stats from random data
                 stats[' '] = ''  # a spaceholder
                 for price_col, count_col in cols:
@@ -412,10 +414,57 @@ class BackTest:
                                                  round(f_pct_change.max(), 2)
                                                  ]
 
+                sampling = {'metric': ['Dist type:',
+                                       'Dist mean:',
+                                       'Dist std:',
+                                       'Std ddof:',
+                                       'Sample size:',
+                                       'Repetitions:',
+                                       'Init. capital:',
+                                       'Commission:',
+                                       'Result min:',
+                                       'Result max:',
+                                       'Result mean:',
+                                       'Result median:',
+                                       'Result std:',
+                                       'P<.05 vs rnd:',
+                                       'P<.01 vs rnd:']}
+                if run_sampling:
+                    # making stats from random data
+
+                    for price_col, count_col in cols:
+                        dist_m, dist_std = stats[count_col][5], stats[count_col][7]
+                        ddof, ssize, reps, init_cap, comm = 1, 100, 100, 10000, 0.001
+                        sampling_results = []
+                        for i in range(0, reps):
+                            cap = init_cap
+                            for n in np.random.normal(dist_m, dist_std, ssize):
+                                cap = cap - (cap * comm * 2)
+                                cap = cap * (1 + n / 100)
+                            sampling_results.append(cap)
+                        sampling_results = pd.Series(data=sampling_results)
+
+                        sampling[count_col] = ['normal',
+                                               dist_m,
+                                               dist_std,
+                                               ddof,
+                                               ssize,
+                                               reps,
+                                               init_cap,
+                                               comm,
+                                               sampling_results.min(),
+                                               sampling_results.max(),
+                                               sampling_results.mean(),
+                                               sampling_results.median(),
+                                               sampling_results.std(ddof=ddof),
+                                               0,
+                                               0]
+
                 with pd.ExcelWriter('pattern_stats.xlsx') as writer:
                     d.to_excel(writer, sheet_name='pattern', index=False)
                     rnd.to_excel(writer, sheet_name='random', index=False)
                     pd.DataFrame(data=stats).to_excel(writer, sheet_name='stats_pattern_vs_random', index=False)
+                    pd.DataFrame(data=sampling).to_excel(writer, sheet_name='sampling_results', index=False)
 
     def generate_signals(self, strategy, parameters=None):
         """Write proper docstring!"""

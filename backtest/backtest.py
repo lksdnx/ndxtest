@@ -17,6 +17,7 @@ from fpdf import FPDF
 
 
 class Portfolio:
+    """pass"""
     def __init__(self, max_positions, initial_equity, commission):
         self.max_positions = max_positions
         self.cash = initial_equity
@@ -27,28 +28,35 @@ class Portfolio:
         self.logdict = OrderedDict()
 
     def positions(self):
+        """pass"""
         return set(list(self.long_positions.keys()) + list(self.short_positions.keys()))
 
     def number_of_positions(self):
+        """pass"""
         return len(self.positions())
 
     def free_slot(self):
+        """pass"""
         return True if self.number_of_positions() < self.max_positions else False
 
     def current_exposure(self):
+        """pass"""
         return {'n_long': len(self.long_positions.keys()),
                 'n_short': len(self.short_positions.keys()),
                 'n_free': self.max_positions - self.number_of_positions(),
                 'net_exposure': len(self.long_positions.keys()) - len(self.short_positions.keys())}
 
     def cash_from_shorts(self):
+        """pass"""
         return sum(self.cash_from_short_positions.values())
 
     def calculate_nshares(self, entry_price):
+        """pass"""
         return (((self.cash - self.cash_from_shorts()) /
                  (self.max_positions - self.number_of_positions())) / entry_price).__floor__()
 
     def describe_current_status(self, date):
+        """pass"""
         print(f'Stats of {self} as of {date}:')
         print(f'Number of Positions: {self.number_of_positions()}. '
               f'Long: {list(self.long_positions.keys())}, '
@@ -59,6 +67,7 @@ class Portfolio:
         print('\n')
 
     def create_log_entry(self, entry_data=None, exit_data=None):
+        """pass"""
         entry_comm = abs(entry_data['entry_price'] * entry_data['nshares'] * self.commission)
         duration, exit_comm, pnl, p_pnl = 0, 0, 0, 0
         if exit_data:
@@ -95,9 +104,11 @@ class Portfolio:
         return d
 
     def create_log_df(self):
+        """pass"""
         return pd.DataFrame.from_dict(data=self.logdict, orient='index').round(2)
 
     def long(self, data):  # closing short position has priority
+        """pass"""
         if data['symbol'] in self.short_positions.keys():
             nshares = self.short_positions[data['symbol']]['nshares']
             entry_value = self.cash_from_short_positions[data['symbol']]
@@ -127,6 +138,7 @@ class Portfolio:
                     self.create_log_entry(entry_data=self.long_positions[data['symbol']])
 
     def short(self, data):  # closing long position has priority
+        """pass"""
         if data['symbol'] in self.long_positions.keys():
             entry_price = self.long_positions[data['symbol']]['entry_price']
             nshares = self.long_positions[data['symbol']]['nshares']
@@ -153,6 +165,7 @@ class Portfolio:
 
 
 class BackTest:
+    """pass"""
     def __init__(self, data_path, start_date=dt.datetime(2015, 9, 1), end_date=dt.datetime(2021, 9, 1),
                  lag=dt.timedelta(days=200), runtime_messages=True, date_range_messages=False):
         """The __init__ method of the BackTest class is responsible for importing price data. The data is stored in the
@@ -238,6 +251,7 @@ class BackTest:
             print(f'Data imported:                              ...{(time.time() - self.t0).__round__(2)} sec elapsed.')
 
     def query_missing_records(self, datestring):
+        """pass"""
         date = dt.datetime.strptime(datestring, '%Y-%m-%d')
         if date.isoweekday() in {6, 7}:
             print(f'{datestring} is not a weekday. Call function with weekdays only.')
@@ -250,6 +264,7 @@ class BackTest:
                         print(f'Data for {k} is missing the record for {date}.')
 
     def setup_search(self, pattern, run_sampling=True):
+        """pass"""
         """This function searches the input_data for certain patterns that represent buy or sell signals.
         The pattern parameter is a list of conditions that have to be met in order to generate a signal in the
         following general format:

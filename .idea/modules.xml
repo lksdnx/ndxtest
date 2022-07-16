@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/algotrading.iml" filepath="$PROJECT_DIR$/.idea/algotrading.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/spy.iml" filepath="$PROJECT_DIR$/.idea/spy.iml" />
     </modules>
   </component>
 </project>

@@ -3,11 +3,6 @@ from indicators.indicators import roc, sma, bbands, rsi
 from indicators.strategy_elements import bullish_crossover, static_level
 
 
-class Signal:
-    def __init__(self):
-        pass
-
-
 def str1(input_data, benchmark, parameters=None):
     """The first 'real' strategy"""
     data = input_data.copy()

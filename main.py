@@ -1,12 +1,11 @@
 import os
-from distutils.dir_util import copy_tree
+
 import pandas as pd
 import numpy as np
 import datetime as dt
 import openpyxl
-from spytools.backtest import BackTest
-from spytools.utils import *
-from spytools.strategies import str1
+from backtest.backtest import BackTest
+from backtest.utils import *
 from indicators.candlesticks import bullish_pin_bar, bearish_pin_bar, bullish_pib_pattern, bearish_pib_pattern
 from indicators.price_action import *
 

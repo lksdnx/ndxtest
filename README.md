@@ -92,7 +92,8 @@
 ### Built With
 
 * [![Next][Next.js]][Next-url]
-* [![Pandas][Pandas]][Pandas-url]
+* [<img src="https://pandas.pydata.org/static/img/pandas_white.svg" alt="drawing" width="100"/>][Pandas-url]
+* [<img src="https://numpy.org/images/logo.svg" alt="drawing" width="100"/>][Numpy-url]
 
 
 <p align="right">(<a href="#top">back to top</a>)</p>
@@ -224,6 +225,10 @@ Project Link: [https://github.com/github_username/repo_name](https://github.com/
 [product-screenshot]: images/screenshot.png
 [Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
 [Next-url]: https://nextjs.org/
+
 [Pandas]: https://pandas.pydata.org/static/img/pandas_white.svg
 [Pandas-url]: https://pandas.pydata.org/
+
+
+[Numpy-url]: https://numpy.org/
 

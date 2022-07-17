@@ -7,7 +7,7 @@ import pandas as pd
 import decimal
 import itertools
 from collections import OrderedDict, defaultdict
-from utils import constituents
+from spy.backtest.utils import constituents
 import time
 import datetime as dt
 import mplfinance as mpf

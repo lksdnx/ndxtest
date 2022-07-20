@@ -5,6 +5,7 @@ import datetime as dt
 from backtest.backtest import BackTest
 from indicators.candlesticks import bullish_pin_bar
 from indicators.price_action import *
+import setuptools
 
 path = "data\\lib\\"
 

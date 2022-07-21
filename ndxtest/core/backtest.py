@@ -7,7 +7,7 @@ import pandas as pd
 import decimal
 import itertools
 from collections import OrderedDict, defaultdict
-from spy.backtest.utils import constituents
+from ndxtest.core.libutils import constituents
 import time
 import datetime as dt
 import mplfinance as mpf
@@ -256,7 +256,7 @@ class BackTest:
         if date.isoweekday() in {6, 7}:
             print(f'{datestring} is not a weekday. Call function with weekdays only.')
         elif date < self.sd:
-            print(f'{datestring} is not within the backtest period. The record might be available but not imported.')
+            print(f'{datestring} is not within the core period. The record might be available but not imported.')
         else:
             for k, v in self.input_data.items():
                 if date not in v.index:
@@ -542,7 +542,7 @@ class BackTest:
 
         t1 = time.time()
         if self.runtime_messages:
-            print(f'Running backtest...')
+            print(f'Running core...')
 
         for date in self.trading_days:
             max_trade_duration_signals = []

@@ -29,11 +29,11 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/github_username/repo_name">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
+  <a href="https://github.com/lksdnx/ndxtest">
+    <img src="https://repository-images.githubusercontent.com/510883139/167249a2-7199-40ae-8e27-c81b3f811735" alt="Logo" width="320" height="180">
   </a>
 
-<h3 align="center">SpyTest</h3>
+<h3 align="center">ndxtest</h3>
 
   <p align="center">
     Test trading strategies on the S&P 500

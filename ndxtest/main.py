@@ -4,7 +4,7 @@ import numpy as np
 import datetime as dt
 from core.backtest import BackTest
 from indicators.candlesticks import bullish_pin_bar
-from indicators.price_action import *
+from indicators.priceaction import *
 import setuptools
 
 path = "data\\lib\\"

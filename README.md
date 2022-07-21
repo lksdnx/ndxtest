@@ -36,7 +36,7 @@
 <h3 align="center">ndxtest</h3>
 
   <p align="center">
-    Test trading strategies on the S&P 500
+    Test a newbies python package to test trading strategies on the S&P 500.
     <br />
     <a href="https://github.com/github_username/repo_name"><strong>Explore the docs »</strong></a>
     <br />
@@ -91,9 +91,10 @@
 
 ### Built With
 
-* [![Next][Next.js]][Next-url]
-* [<img src="https://pandas.pydata.org/static/img/pandas_white.svg" alt="drawing" width="100"/>][Pandas-url]
-* [<img src="https://numpy.org/images/logo.svg" alt="drawing" width="100"/>][Numpy-url]
+
+[<img alt="Python 3.9" height="40" src="https://www.python.org/static/img/python-logo.png" width="120"/>][Python-url]
+[<img src="https://pandas.pydata.org/static/img/pandas_white.svg" alt="drawing" width="100"/>][Pandas-url]
+[<img src="https://numpy.org/images/logo.svg" alt="drawing" width="50"/>][Numpy-url]
 
 
 <p align="right">(<a href="#top">back to top</a>)</p>
@@ -103,32 +104,23 @@
 <!-- GETTING STARTED -->
 ## Getting Started
 
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
+This package lets you test trading ideas and perform backtests on an index level. 
+At the moment, only the S&P 500 is available. The provided daily price data for the 
+index constituents here in the repository has plenty of suvivorship bias up to 2020 
+and is somewhat (but not entirely) free of survivorship after 01/2020. 
 
 ### Prerequisites
 
-This is an example of how to list things you need to use the software and how to install them.
-* npm
-  ```sh
-  npm install npm@latest -g
-  ```
+You need Python. The package was built with Python 3.9
 
 ### Installation
 
-1. Get a free API Key at [https://example.com](https://example.com)
-2. Clone the repo
+1. Install this package using pip (comment 2022-07-21: not yet):
+
    ```sh
-   git clone https://github.com/github_username/repo_name.git
+   pip install ndxtest
    ```
-3. Install NPM packages
-   ```sh
-   npm install
-   ```
-4. Enter your API in `config.js`
-   ```js
-   const API_KEY = 'ENTER YOUR API';
-   ```
+2. Download the /data folder from this repo and save it at your favorite location.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -137,9 +129,13 @@ This is an example of how to list things you need to use the software and how to
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
+Condensed instructions on how to work with this package can be found here.
+For more details, please refer to the [Documentation](https://example.com).
 
-_For more examples, please refer to the [Documentation](https://example.com)_
+The package has following structure:
+
+
+
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -148,7 +144,7 @@ _For more examples, please refer to the [Documentation](https://example.com)_
 <!-- ROADMAP -->
 ## Roadmap
 
-- [ ] Feature 1
+- [x] Feature 1
 - [ ] Feature 2
 - [ ] Feature 3
     - [ ] Nested Feature
@@ -225,6 +221,9 @@ Project Link: [https://github.com/github_username/repo_name](https://github.com/
 [product-screenshot]: images/screenshot.png
 [Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
 [Next-url]: https://nextjs.org/
+
+[Python]: https://www.python.org/static/img/python-logo.png
+[Python-url]: https://www.python.org/
 
 [Pandas]: https://pandas.pydata.org/static/img/pandas_white.svg
 [Pandas-url]: https://pandas.pydata.org/

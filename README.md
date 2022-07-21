@@ -30,7 +30,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/lksdnx/ndxtest">
-    <img src="https://repository-images.githubusercontent.com/510883139/167249a2-7199-40ae-8e27-c81b3f811735" alt="Logo" width="320" height="180">
+    <img src="https://repository-images.githubusercontent.com/510883139/99cc2fb6-8dba-40b3-bb6d-f65860642eab" alt="Logo" width="320" height="180">
   </a>
 
 <h3 align="center">ndxtest</h3>

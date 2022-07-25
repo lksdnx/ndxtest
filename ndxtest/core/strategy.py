@@ -1,3 +1,22 @@
+"""This module contains the Strategy class, which is used to build strategies for the BackTest class in backtest.py.
+
+Imports
+-------
+pandas as pd
+
+Classes
+-------
+Strategy:
+    The main class of this module. Please refer to the docstring of the class itself for more information.
+
+Functions
+---------
+deprecated_strategy_function:
+    A deprecated function shell that was used as a signal generation function before the Strategy class was there.
+    Will be removed in future versions.
+
+For more information please refer to the docstrings for Strategy as well as its methods.
+"""
 import pandas as pd
 
 
@@ -46,8 +65,8 @@ class Strategy:
 
         For information on how to use the Strategy class please refer to the documentation.
         """
-        self.data = None
-        self.index = None
+        self.data = data
+        self.index = index
         # conditions for entering and exiting long positions
         self.entry_long_conditions = []
         self.exit_long_conditions = []
@@ -149,7 +168,7 @@ class Strategy:
         Returns
         -------
         dict
-            A dictionary price data like so: {'AAPL': pd.Dataframe, 'AMNZ': pd.Dataframe, ...}, where each df
+            A dictionary containing price data like so: {'AAPL': pd.Dataframe, 'AMNZ': pd.Dataframe, ...}, where each df
             is annotated with a 'score', 'entry_signals' and 'exit_signals' column. The 'score' column currently
             has no function (2022-07-25).
             In the 'entry_signals' column: 0 = no signal (do nothing), 1 = enter long, -1 = enter short.
@@ -226,7 +245,7 @@ def deprecated_strategy_function(input_data, benchmark, parameters=None):
     """This is deprecated."""
     data = input_data.copy()
 
-    parameters = {} if parameters is None else parameters
+    # parameters = {} if parameters is None else parameters
     # p1 = parameters['p1'] if 'p1' in parameters else 70
     # p2 = parameters['p2'] if 'p2' in parameters else 20
     # p3 = parameters['p3'] if 'p3' in parameters else 90
@@ -238,6 +257,7 @@ def deprecated_strategy_function(input_data, benchmark, parameters=None):
         entry_short_where = 0
         exit_short_where = 0
         exit_everything_where = 0
+        exit_everything_where += 1
 
         data[symbol].loc[entry_long_where, 'entry_signals'] = 1
         data[symbol].loc[exit_long_where, 'exit_signals'] = -1

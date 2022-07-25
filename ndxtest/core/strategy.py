@@ -80,7 +80,7 @@ class Strategy:
         Parameters
         ----------
              day: int
-                Day (relative to day 0 of signal completion) on which to check for the condition to be fullfilled.
+                Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
              condition: function(pd.Dataframe | pd.Series)
                 A function that takes a pd.Dataframe or pd.Series and checks for each row whether conditions
                 (defined by the function) are met or not. Returns a boolean pd.Series with the same index.
@@ -98,7 +98,7 @@ class Strategy:
         Parameters
         ----------
              day: int
-                Day (relative to day 0 of signal completion) on which to check for the condition to be fullfilled.
+                Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
              condition: function(pd.Dataframe | pd.Series)
                 A function that takes a pd.Dataframe or pd.Series and checks for each row whether conditions
                 (defined by the function) are met or not. Returns a boolean pd.Series with the same index.
@@ -116,7 +116,7 @@ class Strategy:
         Parameters
         ----------
         day: int
-            Day (relative to day 0 of signal completion) on which to check for the condition to be fullfilled.
+            Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
         condition: function(pd.Dataframe | pd.Series)
             A function that takes a pd.Dataframe or pd.Series and checks for each row whether conditions
             (defined by the function) are met or not. Returns a boolean pd.Series with the same index.
@@ -138,7 +138,7 @@ class Strategy:
         Parameters
         ----------
         day: int
-            Day (relative to day 0 of signal completion) on which to check for the condition to be fullfilled.
+            Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
         condition: function(pd.Dataframe | pd.Series)
             A function that takes a pd.Dataframe or pd.Series and checks for each row whether conditions
             (defined by the function) are met or not. Returns a boolean pd.Series with the same index.
@@ -241,8 +241,9 @@ class Strategy:
         return self.data
 
 
-def deprecated_strategy_function(input_data, benchmark, parameters=None):
+def deprecated_strategy_function(input_data=None):  # ,benchmark=None, parameters=None):
     """This is deprecated."""
+    pass
     data = input_data.copy()
 
     # parameters = {} if parameters is None else parameters

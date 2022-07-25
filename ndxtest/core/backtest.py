@@ -166,10 +166,12 @@ class Portfolio:
 
 class BackTest:
     """pass"""
-    def __init__(self, data_path, start_date=dt.datetime(2015, 9, 1), end_date=dt.datetime(2021, 9, 1),
+    def __init__(self, data_path, output_path, start_date=dt.datetime(2015, 9, 1), end_date=dt.datetime(2021, 9, 1),
                  lag=dt.timedelta(days=200), runtime_messages=True, date_range_messages=False):
         """The __init__ method of the BackTest class is responsible for importing price data. The data is stored in the
         self.input_data field as a dictionary with following structure: {'symbol': data as a pd.Dataframe}."""
+        self.data_path = data_path
+        self.output_path = output_path
         self.runtime_messages = runtime_messages
         self.t0, self.tr, self.runtime = time.time(), None, None
         self.sd, self.ed, self.duration = start_date, end_date, end_date - start_date
@@ -182,11 +184,11 @@ class BackTest:
         self.input_data = {}
         self.data = None
 
-        self.input_benchmark = pd.read_csv(f'{data_path}^GSPC.csv', engine='c', dtype=float32_cols,
-                                           index_col='date', parse_dates=[0], dayfirst=True)
-        self.input_benchmark.drop(columns=['dividends', 'stock_splits'], inplace=True)
-        self.input_benchmark = self.input_benchmark.loc[self.input_benchmark.index.intersection(self.edr)]
-        self.benchmark = None
+        self.input_index = pd.read_csv(f'{data_path}^GSPC.csv', engine='c', dtype=float32_cols,
+                                       index_col='date', parse_dates=[0], dayfirst=True)
+        self.input_index.drop(columns=['dividends', 'stock_splits'], inplace=True)
+        self.input_index = self.input_index.loc[self.input_index.index.intersection(self.edr)]
+        self.index = None
 
         self.signals = defaultdict(list)
         self.alerts = "No alerts yet. Use the generate_signals or the scan_for_patterns method first."
@@ -240,7 +242,7 @@ class BackTest:
             df['symbol'] = symbol
 
             if date_range_messages:
-                missing_records = df.index.symmetric_difference(edr.intersection(self.input_benchmark.index))
+                missing_records = df.index.symmetric_difference(edr.intersection(self.input_index.index))
                 if any(missing_records):
                     print(f'{symbol}: {len(missing_records)} missing records in extended date range.')
 
@@ -264,7 +266,6 @@ class BackTest:
                         print(f'Data for {k} is missing the record for {date}.')
 
     def setup_search(self, pattern, run_sampling=True):
-        """pass"""
         """This function searches the input_data for certain patterns that represent buy or sell signals.
         The pattern parameter is a list of conditions that have to be met in order to generate a signal in the
         following general format:
@@ -297,7 +298,7 @@ class BackTest:
                         # task find more elegant way of column naming?
                         signals[i] = func(df).shift(-delta_days)
                     else:
-                        signals[i] = func(self.input_benchmark).shift(-delta_days)
+                        signals[i] = func(self.input_index).shift(-delta_days)
 
                 cds = signals.loc[signals.T.all()].index.values  # cds = completion days of pattern (=0)
 
@@ -481,23 +482,27 @@ class BackTest:
                     pd.DataFrame(data=stats).to_excel(writer, sheet_name='stats_pattern_vs_random', index=False)
                     pd.DataFrame(data=sampling).to_excel(writer, sheet_name='sampling_results', index=False)
 
-    def generate_signals(self, strategy, parameters=None):
+    def generate_signals(self, strategy):
         """Write proper docstring!"""
         t1, self.tr = time.time(), time.time()
-        self.data = strategy(self.input_data, self.input_benchmark, parameters=parameters)
+
+        strategy.data = self.input_data.copy()
+        strategy.index = self.input_index.copy()
+        self.data = strategy.generate_signals()
         if self.runtime_messages:
             print(f'Signals generated:                          ...{(time.time() - t1).__round__(2)} sec elapsed.')
 
         t1 = time.time()
+
         for symbol, df in self.data.items():
             self.data[symbol] = df.loc[df.index.intersection(self.constituents[symbol]['dr'])]
 
-        self.benchmark = self.input_benchmark.loc[self.input_benchmark.index.intersection(self.dr)]
-        self.benchmark['d%change'] = self.benchmark.close.pct_change() * 100
-        self.benchmark['c%change'] = ((self.benchmark.close / self.benchmark.close[0]) - 1) * 100
-        self.benchmark = self.benchmark.round(2)
+        self.index = self.input_index.loc[self.input_index.index.intersection(self.dr)]
+        self.index['d%change'] = self.index.close.pct_change() * 100
+        self.index['c%change'] = ((self.index.close / self.index.close[0]) - 1) * 100
+        self.index = self.index.round(2)
 
-        self.trading_days = self.benchmark.index.tolist()
+        self.trading_days = self.index.index.tolist()
 
         if self.runtime_messages:
             print(f'Chopping finished:                          ...{(time.time() - t1).__round__(2)} sec elapsed.')
@@ -513,8 +518,7 @@ class BackTest:
         for symbol, df in concat_data.groupby('symbol'):
             df['entry_signals'] = df['entry_signals'].shift(1)  # trades will be executed on the next day
             df['exit_signals'] = df['exit_signals'].shift(1)  # trades will be executed on the next day
-            df.loc[df.index[-1], ['entry_signals', 'exit_signals', 'score']] = [0, -2,
-                                                                                0]  # adding signals to exit on the last day
+            df.loc[df.index[-1], ['entry_signals', 'exit_signals', 'score']] = [0, -2, 0]  # adding signals to exit on the last day
             df.dropna(inplace=True)  # dropping NaN values
             dict_data[symbol] = df.loc[(df.entry_signals != 0) | (df.exit_signals != 0)]
 
@@ -527,7 +531,7 @@ class BackTest:
             print(f'Signals ordered:                            ...{(time.time() - t1).__round__(2)} sec elapsed.')
 
     def execute_signals(self, long_only=False, commission=.001, max_positions=10, initial_equity=10000.00,
-                        max_trade_duration=None, stoploss=None, entry_mode='open', eqc_method='approx'):
+                        max_trade_duration=None, stoploss=None, eqc_method='approx'):
         """Entry Signals: 1 = enter long position, -1 = enter short position,
         Exit Signals: 1 = exit short position, -1 = exit long position, -2 = exit long or short position"""
         self.commission = commission
@@ -536,7 +540,6 @@ class BackTest:
         self.max_trade_duration = max_trade_duration
         self.stoploss = stoploss
         self.exposure = {}
-        self.entry_mode = entry_mode
 
         p = Portfolio(max_positions=max_positions, initial_equity=initial_equity, commission=commission)
 
@@ -636,7 +639,7 @@ class BackTest:
         self.exposure = pd.DataFrame.from_dict(data=self.exposure, orient='index', dtype=np.int8)
 
         self.log_df = p.create_log_df()
-        self.log_df.to_csv('output\\tradelog.csv')
+        self.log_df.to_csv(self.output_path + 'tradelog.csv')
         self.log_df = self.log_df.loc[self.log_df['exit_date'] != 0]
 
         if eqc_method == 'full':
@@ -644,19 +647,19 @@ class BackTest:
             self.equity_curve_df['d%change'] = self.equity_curve_df.close.pct_change() * 100
             self.equity_curve_df['c%change'] = (((self.equity_curve_df.close / initial_equity) - 1) * 100)
             self.equity_curve_df = self.equity_curve_df.round(2)
-            self.equity_curve_df.to_csv('output\\equity_curve.csv')
+            self.equity_curve_df.to_csv(self.output_path + 'equity_curve.csv')
 
         if eqc_method == 'approx':
             x = self.log_df.drop_duplicates(subset=['exit_date'], keep='last')
             x = x.set_index('exit_date')['market_value']
-            self.equity_curve_df = pd.DataFrame(data={'close': np.nan}, index=self.benchmark.index)
+            self.equity_curve_df = pd.DataFrame(data={'close': np.nan}, index=self.index.index)
             self.equity_curve_df.loc[x.index, 'close'] = x
             self.equity_curve_df.fillna(method="ffill", inplace=True)
             self.equity_curve_df.fillna(self.initial_equity, inplace=True)
             self.equity_curve_df['d%change'] = self.equity_curve_df.close.pct_change() * 100
             self.equity_curve_df['c%change'] = (((self.equity_curve_df.close / initial_equity) - 1) * 100)
             self.equity_curve_df = self.equity_curve_df.round(2)
-            self.equity_curve_df.to_csv('output\\equity_curve.csv')
+            self.equity_curve_df.to_csv(self.output_path + 'equity_curve.csv')
 
         self.drawdown = pd.DataFrame(data={'roll_max': self.equity_curve_df.close.rolling(252, min_periods=1).max()},
                                      index=self.equity_curve_df.index)
@@ -678,9 +681,9 @@ class BackTest:
                         'perf': self.equity_curve_df['c%change'][-1],
                         'ann_perf': (((1 + ((self.equity_curve_df.close[-1] - initial_equity) / initial_equity))
                                       ** (1 / (self.duration.days / 365.25)) - 1) * 100).__round__(2),
-                        'bm_perf': self.benchmark['c%change'][-1],
+                        'bm_perf': self.index['c%change'][-1],
                         'bm_ann_perf': (((1 + (
-                                (self.benchmark.close[-1] - self.benchmark.close[0]) / self.benchmark.close[0]))
+                                (self.index.close[-1] - self.index.close[0]) / self.index.close[0]))
                                          ** (1 / (self.duration.days / 365.25)) - 1) * 100).__round__(2)}
 
         if self.runtime_messages:
@@ -768,7 +771,7 @@ class BackTest:
     def report(self):
 
         fig1, axs1 = plt.subplots(3, 1, figsize=(9, 6))
-        axs1[0].plot(self.benchmark['c%change'].index, self.benchmark['c%change'], color='blue', label='Benchmark')
+        axs1[0].plot(self.index['c%change'].index, self.index['c%change'], color='blue', label='Benchmark')
         axs1[0].plot(self.equity_curve_df['c%change'].index, self.equity_curve_df['c%change'], color='black',
                      label='Backtest')
         axs1[0].set_xticks([])
@@ -793,7 +796,7 @@ class BackTest:
         axs1[2].legend()
         fig1.tight_layout()
 
-        plt.savefig("output\\f1.png", dpi=None, facecolor='w', edgecolor='w')
+        plt.savefig(self.output_path + "f1.png", dpi=None, facecolor='w', edgecolor='w')
 
         fig2, axs2 = plt.subplots(1, 3, figsize=(9, 3), gridspec_kw={"wspace": .5})
         main_corr = self.log_df[['entry_score', 'duration', 'entry_price', 'profitable']]
@@ -826,7 +829,7 @@ class BackTest:
         axs2[2].title.set_text('Exit Weekday Correlations')
         sns.heatmap(self.correlations['exit_corr'], annot=True, square=False, ax=axs2[2], cmap='viridis')
 
-        plt.savefig("output\\f2.png", dpi=None, facecolor='w', edgecolor='w')
+        plt.savefig(self.output_path + "f2.png", dpi=None, facecolor='w', edgecolor='w')
 
         class PDF(FPDF):  # A4: w = 210, h = 297
             pass
@@ -842,7 +845,7 @@ class BackTest:
         pdf.cell(w=80, align='', txt=f'SPY', ln=1)
 
         pdf.ln(140)
-        pdf.image('output\\f1.png', x=15, y=25, w=180, h=120)
+        pdf.image(self.output_path + 'f1.png', x=15, y=25, w=180, h=120)
 
         pdf.cell(w=80, align='', txt=f'Parameters:', ln=0)
         pdf.cell(w=80, align='', txt=f'{self.best_parameters if self.opt else "not optimized"}', ln=1)
@@ -885,15 +888,15 @@ class BackTest:
         # pdf.image('output\\f2.png', x=15, y=20, w=180, h=60)
         if self.opt:
             pdf.cell(w=190, align='', txt=f"Optimization:")
-            shape = img.imread('output\\f3.png').shape
-            pdf.image('output\\f3.png', x=10, y=20, w=shape[0] * (160 / shape[0]), h=shape[1] * (160 / shape[1]))
+            shape = img.imread(self.output_path + 'f3.png').shape
+            pdf.image(self.output_path + 'f3.png', x=10, y=20, w=shape[0] * (160 / shape[0]), h=shape[1] * (160 / shape[1]))
 
-        pdf.output('output\\test.pdf', 'F')
+        pdf.output(self.output_path + 'test.pdf', 'F')
 
-        os.remove('output\\f1.png')
-        os.remove('output\\f2.png')
+        os.remove(self.output_path + 'f1.png')
+        os.remove(self.output_path + 'f2.png')
         if self.opt:
-            os.remove('output\\f3.png')
+            os.remove(self.output_path + 'f3.png')
 
     def plot_ticker(self, symbol=None):
         """This function will plot."""

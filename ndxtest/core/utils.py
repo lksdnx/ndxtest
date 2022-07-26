@@ -1,3 +1,32 @@
+"""This module contains various functions, in particular for updating the data library and the histfile.
+
+Imports
+-------
+os
+time
+datetime as dt
+pandas as pd
+numpy as np
+copy_tree from distutils.dir_util
+DATA_PATH from ndxtest
+
+Functions
+---------
+constituents(start_date, end_date, lag, data_path=DATA_PATH):
+    This function is called during initialization of a BackTest instance. Users of the package do not need it.
+download_batch(symbol_list, period="5y", data_path=DATA_PATH):
+    Downloads price data from https://finance.yahoo.com/ in the right format.
+update_lib(index_symbol='^GSPC', period="3mo", period_first_download="5y", rows=1, symbols=None, data_path=DATA_PATH):
+    Updates the entire data library.
+histfile_rename_symbol(old, new, data_path=DATA_PATH):
+    Renames a specific symbol in the histfile.
+histfile_add_symbol(symbol, date_added, data_path=DATA_PATH):
+    Creates a new entry in the histfile containing a symbol and the date on which the symbol was added to the index.
+histfile_remove_symbol(symbol, date_removed, data_path=DATA_PATH):
+    Creates a new entry in the histfile containing a symbol and the date on which the symbol was removed from the index.
+
+For more information please refer to the docstrings of the functions as well as the online documentation.
+"""
 import os
 import time
 import datetime as dt
@@ -5,12 +34,39 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 from distutils.dir_util import copy_tree
+from ndxtest import DATA_PATH
 
 
-def constituents(data_path, start_date, end_date, lag):
-    """Returns a dictionary of symbols and inclusion date_ranges in the benchmark index
-    between the start_date and the end_date."""
-    hist = pd.read_excel(f'{data_path}^HIST.xlsx', index_col='date', parse_dates=[0])
+def constituents(start_date, end_date, lag, data_path=DATA_PATH):
+    """Returns a dict of symbols and date ranges of inclusion in the index between the start_date and the end_date.
+
+    This function is called during initialization of a new instance of the BackTest class. It's purpose is to read from
+    the histfile the date ranges of inclusion in the index for each symbol between the start_date and the end_date. It
+    handles special cases such as symbols that entered and left the index repeated times between start_date and end_date
+
+    Parameters
+    ----------
+    start_date: datetime.datetime Object
+        The start date of the backtest period.
+    end_date: datetime.datetime Object
+        The end date of the backtest period.
+    lag: datetime.timedelta Object
+        A timedelta that is added in front of the start_date. This is necessary for calculating indicators that depend
+        on previous price data such as moving averages and many others.
+    data_path: str
+        The string should represent the absolute path to where the `data` folder is stored.
+
+    Returns
+    -------
+    A nested dictionary as follows:
+        {symbol: {'dr': pandas.daterange Object representing the daterange of inclusion in the index,
+                  'edr': pandas.daterange Object representing 'dr' plus the lag period},
+         symbol2: ... }
+
+    For more information please refer to the docstrings of the BackTest class and its methods as well as the online
+    documentation.
+    """
+    hist = pd.read_excel(data_path + 'data\\lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
 
     dr = pd.date_range(start_date, end_date)
     edr = pd.date_range(start_date - lag, end_date)
@@ -60,10 +116,30 @@ def constituents(data_path, start_date, end_date, lag):
     return cons
 
 
-def ybatchdownload(symbollist, period="5y"):
-    """This function performs a batchdownload from yfinance and does some formatting. It saves downloaded data into the
-    data folder. Valid periods are ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max", None]"""
-    for symbol in symbollist:
+def download_batch(symbol_list, period='5y', data_path=DATA_PATH):
+    """This function downloads price data for new symbols from https://finance.yahoo.com/ and performs some formatting.
+
+    Parameters
+    ----------
+    symbol_list: list
+        A list containing the currently valid ticker symbols to download. For example ['AAPL', 'AMZN', 'META']
+    period: str, default='5y'
+        The time period of data that shall be downloaded. Valid periods are '1d', '5d', '1mo', '3mo', '6mo',
+        '1y', '2y', '5y', '10y', 'ytd' and 'max'. It is recommended to download at least 2 years of price data
+        when a symbol is added to the index for the first time. This is important for calculation of indicators
+        like 200 period moving averages that require a lot of trailing price data.
+    data_path: str
+        The string should represent the absolute path to where the `data` folder is stored.
+
+    Returns
+    -------
+    None but creates a new folder data\\downloaded_YYYY-MM-DD\\ where downloaded .csv files for each symbol are stored.
+
+    For additional information please refer to the online documentation.
+    """
+
+    os.mkdir(data_path + f'data\\downloaded_{str(dt.datetime.now())[:10]}\\')
+    for symbol in symbol_list:
         print(f'Loading {symbol}...')
         try:
             data = yf.Ticker(symbol)
@@ -89,43 +165,63 @@ def ybatchdownload(symbollist, period="5y"):
             print(f"{len(df.index)} records downloaded {symbol}.")
 
             if len(df.index) > 1:
-                df.to_csv(f'data\\{symbol}.csv')
+                df.to_csv(DATA_PATH + f'data\\downloaded_{str(dt.datetime.now())[:10]}\\' + f'{symbol}.csv')
 
         except KeyError or ValueError or AttributeError:
             print(f'Error processing {symbol}... (may be delisted)')
 
 
-def yupdatelib(benchmark_symbol='^GSPC', histfile='data\\lib\\^HIST.xlsx', last_rows=1,
-               period="3mo", period_first_download="2y", symbols=None):
-    """This function updates all active symbols in data//lib. Active symbols are read from the
-    from the 'histfile' which as of now has to be updated manually by checking for updates to the S&P 500 index
-    on the S&P global website: 'https://www.spglobal.com/spdji/en/indices/equity/sp-500/#news-research'.
+def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', rows=1, symbols=None, data_path=DATA_PATH):
+    """This function updates all active symbols in data\\lib\\.
+
+    Active symbols are read from the from the 'histfile'. The histfile as of now has to be updated manually
+    by checking for updates to the index on 'https://www.spglobal.com/spdji/en/indices/equity/sp-500/#news-research'.
+
+    Before updating the contents of data\\lib\\, the function creates a backup folder: data\\lib_backup_YYYY-MM-DD\\.
     The function downloads the missing historic price data between the last update (newest record in ^GSPC.csv) and
-    today from yahoo finance (using the yfinance package). It checks for missing price data.
-    If a symbol does not yet have a .csv file in the //lib folder e.g. because it was recently added to the index,
-    2 years (period_first_download) worth of historic price data will be downloaded by default.
-    If a symbol had a stock split between the last update and the current one, the existing data is processed
-    accordingly before appending the new records. The 'last_rows' parameter (1 by default) can be increased to download
-    price data for symbols that have recently been removed from the index (e.g. with a value of 10, the set of the
-    symbols of the last 10 rows of the histfile is updated). Valid values for period/period_first_download are
-    ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max", None]"""
+    today from yahoo finance (using the yfinance package). It performs some checks on the way. If a symbol had a stock
+    split between the last update and the current one, the existing data is processed accordingly before appending the
+    new records.
 
-    # out = sys.stdout
-    # sys.stdout = open(f"data\\log_{str(dt.datetime.now())[:10]}.txt", "w")
+    Parameters
+    ----------
+    index_symbol: str, default='^GSPC'
+        '^GSPC' is the ticker symbol of the S&P 500 index on https://finance.yahoo.com/
+    period: str, default='3mo'
+        The period for which new price data is downloaded, if the last update is more than 3 months back, increase
+        accordingly. Valid periods are '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd' and 'max'. Be
+        aware that downloading large amounts of data for many symbols can lead to restricted access to the yahoo
+        finance API on the way. In this case, the process of updating the library will take some time longer.
+    period_first_download: str, default='5y'
+        Like period but for symbols with no existing .csv file. (Usually, symbols that were newly added to the index)
+    rows: int, default=1
+        The update_lib function only updates symbols that are currently included in the index, i.e. all symbol listed
+        in the newest record in the histfile (the last row). If new entries are added to the histfile BEFORE running
+        update_lib (because of index inclusions or exclusions), the last row in the histfile will not contain all
+        symbols that need updating. If this is the case, increase rows by 1 for each entry that was added.
+    symbols: str, default=None
+        Here, you can provide a list of symbols if your intention is to only update price data for specific symbols.
+        E.g. ['AAPL', 'AMZN'].
+    data_path: str
+        The string should represent the absolute path to where the `data` folder is stored.
 
-    from_dir = "data\\lib\\"
-    to_dir = f"data\\lib_backup_{str(dt.datetime.now())[:10]}\\"
+    For more information on how to keep a functioning data library and histfile for the ndxtest package, please refer to
+    the online documentation.
+    """
+
+    from_dir = data_path + 'data\\lib\\'
+    to_dir = data_path + f'data\\lib_backup_{str(dt.datetime.now())[:10]}\\'
     copy_tree(from_dir, to_dir)  # a safety backup of the lib folder is generated prior to updating
 
     if symbols is None:
-        hist = pd.read_excel(histfile)
-        activesymbols = sorted(list(set(','.join(hist.symbols.values[-last_rows:]).split(','))))
+        hist = pd.read_excel(DATA_PATH + 'data\\lib\\^HIST.xlsx')
+        activesymbols = sorted(list(set(','.join(hist.symbols.values[-rows:]).split(','))))
         # all symbols within 'last_rows' of the histfile are updated
     else:
         activesymbols = symbols
 
-    lib = [symbol[:-4] for symbol in os.listdir('data\\lib\\') if symbol.endswith('.csv')]
-    activesymbols.insert(0, benchmark_symbol)
+    lib = [symbol[:-4] for symbol in os.listdir(DATA_PATH + 'data\\lib\\') if symbol.endswith('.csv')]
+    activesymbols.insert(0, index_symbol)
     approved = False
     breaker = False
     reference_index = None
@@ -155,13 +251,13 @@ def yupdatelib(benchmark_symbol='^GSPC', histfile='data\\lib\\^HIST.xlsx', last_
                 print(f"{len(df.index)} records downloaded for {symbol}...")
 
                 if len(df.index) > 1:
-                    df.to_csv(f'data\\lib\\{symbol}.csv')
+                    df.to_csv(DATA_PATH + f'data\\lib\\{symbol}.csv')
 
             except KeyError or ValueError or AttributeError:
                 print(f'Error processing {symbol}... (may be delisted)')
 
         else:  # the symbol already has a .csv file in //lib
-            main = pd.read_csv(f'data\\lib\\{symbol}.csv', index_col='date', parse_dates=[0])
+            main = pd.read_csv(DATA_PATH + f'data\\lib\\{symbol}.csv', index_col='date', parse_dates=[0])
             time.sleep(.3)
             try:
                 data = yf.Ticker(symbol)
@@ -192,7 +288,7 @@ def yupdatelib(benchmark_symbol='^GSPC', histfile='data\\lib\\^HIST.xlsx', last_
 
                 while not approved:
                     if reference_index is None:
-                        print(f'{benchmark_symbol} is used as a reference.')
+                        print(f'{index_symbol} is used as a reference.')
                         print(f'The last updated was performed on {main.index[-1]}.')
                         print(f'Downloaded data contains {len(df.index)} new records.')
                         print(f'New records: {list(df.index)}.')
@@ -227,13 +323,10 @@ def yupdatelib(benchmark_symbol='^GSPC', histfile='data\\lib\\^HIST.xlsx', last_
             except KeyError or ValueError or AttributeError:
                 print(f'Error processing {symbol}... (may be delisted)')
 
-    # sys.stdout.close()
-    # sys.stdout = out
-    # end of yupdatelib
 
-
-def histfile_rename_symbol(histfile='data\\lib\\^HIST.xlsx', old=None, new=None):
-    hist = pd.read_excel(histfile, index_col='date', parse_dates=[0])
+def histfile_rename_symbol(old, new, data_path=DATA_PATH):
+    """doc"""
+    hist = pd.read_excel(data_path + 'data\\lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
     data = []
     for row in hist.symbols:
         if f'{old}' in row:
@@ -244,5 +337,15 @@ def histfile_rename_symbol(histfile='data\\lib\\^HIST.xlsx', old=None, new=None)
             print('Ticker to replace was not found.')
             data.append(row)
     hist['symbols'] = data
-    hist.to_excel('data\\lib\\^HIST.xlsx')
+    hist.to_excel(DATA_PATH + 'data\\lib\\^HIST.xlsx')
     return None
+
+
+def histfile_add_symbol(symbol, date_added, data_path=DATA_PATH):
+    """doc"""
+    pass
+
+
+def histfile_remove_symbol(symbol, date_removed, data_path=DATA_PATH):
+    """doc"""
+    pass

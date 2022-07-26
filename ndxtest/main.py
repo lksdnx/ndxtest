@@ -9,7 +9,7 @@ from indicators.priceaction import gap_down_wick, gap_up_wick
 from indicators.indicators import sma
 import setuptools
 
-path = "data\\lib\\"
+DATA_PATH = ''
 
 
 if __name__ == "__main__":

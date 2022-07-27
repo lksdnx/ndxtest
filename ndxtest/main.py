@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import datetime as dt
+import ndxtest
 from core.backtest import BackTest
 from core.strategy import Strategy
 from indicators.candlesticks import bullish_pin_bar
@@ -15,7 +16,9 @@ DATA_PATH = ''
 if __name__ == "__main__":
     # pd.set_option('display.max_rows', None)
     # pd.set_option('display.max_columns', None)
-
+    print(ndxtest.DATA_PATH)
+    ndxtest.set_data_path('C:\\Users\\lukas\\OneDrive\\Desktop\\')
+    print(ndxtest.DATA_PATH)
     exit()
     bt = BackTest(data_path='data\\lib\\',
                   output_path='C:\\Users\\lukas\\OneDrive\\Desktop\\output\\',

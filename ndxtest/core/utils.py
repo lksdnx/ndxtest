@@ -6,6 +6,7 @@ os
 time
 datetime as dt
 pandas as pd
+pandas.io.formats.excel as pde
 numpy as np
 copy_tree from distutils.dir_util
 DATA_PATH from ndxtest
@@ -16,14 +17,12 @@ constituents(start_date, end_date, lag, data_path=DATA_PATH):
     This function is called during initialization of a BackTest instance. Users of the package do not need it.
 download_batch(symbol_list, period="5y", data_path=DATA_PATH):
     Downloads price data from https://finance.yahoo.com/ in the right format.
-update_lib(index_symbol='^GSPC', period="3mo", period_first_download="5y", rows=1, symbols=None, data_path=DATA_PATH):
+update_lib(index_symbol='^GSPC', period="3mo", period_first_download="5y", new_entries=0, symbols=None, data_path=DATA_PATH):
     Updates the entire data library.
 histfile_rename_symbol(old, new, data_path=DATA_PATH):
     Renames a specific symbol in the histfile.
-histfile_add_symbol(symbol, date_added, data_path=DATA_PATH):
-    Creates a new entry in the histfile containing a symbol and the date on which the symbol was added to the index.
-histfile_remove_symbol(symbol, date_removed, data_path=DATA_PATH):
-    Creates a new entry in the histfile containing a symbol and the date on which the symbol was removed from the index.
+histfile_new_entry(action, symbol, date, data_path=DATA_PATH):
+    Creates a new entry in the histfile with a symbol and the date on which the symbol was added to/removed from the index.
 
 For more information please refer to the docstrings of the functions as well as the online documentation.
 """
@@ -31,6 +30,7 @@ import os
 import time
 import datetime as dt
 import pandas as pd
+import pandas.io.formats.excel as pde
 import numpy as np
 import yfinance as yf
 from distutils.dir_util import copy_tree
@@ -171,7 +171,7 @@ def download_batch(symbol_list, period='5y', data_path=DATA_PATH):
             print(f'Error processing {symbol}... (may be delisted)')
 
 
-def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', rows=1, symbols=None, data_path=DATA_PATH):
+def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', new_entries=0, symbols=None, data_path=DATA_PATH):
     """This function updates all active symbols in data\\lib\\.
 
     Active symbols are read from the from the 'histfile'. The histfile as of now has to be updated manually
@@ -194,18 +194,22 @@ def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', r
         finance API on the way. In this case, the process of updating the library will take some time longer.
     period_first_download: str, default='5y'
         Like period but for symbols with no existing .csv file. (Usually, symbols that were newly added to the index)
-    rows: int, default=1
+    new_entries: int, default=0
         The update_lib function only updates symbols that are currently included in the index, i.e. all symbol listed
         in the newest record in the histfile (the last row). If new entries are added to the histfile BEFORE running
         update_lib (because of index inclusions or exclusions), the last row in the histfile will not contain all
-        symbols that need updating. If this is the case, increase rows by 1 for each entry that was added.
+        symbols that need updating. If this is the case, increase new_entries by 1 for each entry that was added.
     symbols: str, default=None
         Here, you can provide a list of symbols if your intention is to only update price data for specific symbols.
         E.g. ['AAPL', 'AMZN'].
     data_path: str
-        The string should represent the absolute path to where the `data` folder is stored.
+        String that represents the absolute path to where the `data` folder is stored.
 
-    For more information on how to keep a functioning data library and histfile for the ndxtest package, please refer to
+    Returns
+    -------
+    None but updates the price data stored in data\\lib\\.
+
+    For more information on how to maintain the data library and histfile for the ndxtest package, please refer to
     the online documentation.
     """
 
@@ -215,7 +219,7 @@ def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', r
 
     if symbols is None:
         hist = pd.read_excel(DATA_PATH + 'data\\lib\\^HIST.xlsx')
-        activesymbols = sorted(list(set(','.join(hist.symbols.values[-rows:]).split(','))))
+        activesymbols = sorted(list(set(','.join(hist.symbols.values[-(new_entries + 1):]).split(','))))
         # all symbols within 'last_rows' of the histfile are updated
     else:
         activesymbols = symbols
@@ -322,30 +326,97 @@ def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', r
 
             except KeyError or ValueError or AttributeError:
                 print(f'Error processing {symbol}... (may be delisted)')
-
-
-def histfile_rename_symbol(old, new, data_path=DATA_PATH):
-    """doc"""
-    hist = pd.read_excel(data_path + 'data\\lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
-    data = []
-    for row in hist.symbols:
-        if f'{old}' in row:
-            new_row = row.replace(f'{old}', f'{new}')
-            new_row = ','.join(sorted(new_row.split(',')))
-            data.append(new_row)
-        else:
-            print('Ticker to replace was not found.')
-            data.append(row)
-    hist['symbols'] = data
-    hist.to_excel(DATA_PATH + 'data\\lib\\^HIST.xlsx')
     return None
 
 
-def histfile_add_symbol(symbol, date_added, data_path=DATA_PATH):
-    """doc"""
-    pass
+def histfile_rename_symbol(old, new, data_path=DATA_PATH):
+    """Renames a specific symbol in the histfile.
+
+    Parameters
+    ----------
+    old: str
+        Old name of the symbol, e.g. 'FB'
+    new: str
+        New name of the symbol, e.g. 'META'
+    data_path: str
+        String that represents the absolute path to where the `data` folder is stored.
+
+    Returns
+    -------
+    None but overrides the histfile, renaming a specific symbol.
+
+    For more information on how to maintain the histfile please refer to the online documentation.
+    """
+
+    pde.ExcelFormatter.header_style = None
+    hist = pd.read_excel(data_path + 'data\\lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
+    data = []
+    for row in hist['symbols']:
+        row = row.split(',')
+        if old in row:
+            i = row.index(old)
+            new_row = row[:i] + [new] + row[i+1:]
+            data.append(','.join(sorted(new_row)))
+        else:
+            data.append(','.join(sorted(row)))
+    hist['symbols'] = data
+
+    hist['added'].replace(old, new, inplace=True)
+    hist['removed'].replace(old, new, inplace=True)
+
+    hist.to_excel(data_path + 'data\\lib\\^HIST.xlsx')
+    return None
 
 
-def histfile_remove_symbol(symbol, date_removed, data_path=DATA_PATH):
-    """doc"""
-    pass
+def histfile_new_entry(action, symbol, date, data_path=DATA_PATH):
+    """Creates a new entry in the histfile with a symbol and the date on which it was added to/removed from the index.
+
+    Parameters
+    ----------
+    action: str
+        Accepts 'add' for adding a symbol, or 'remove' for removing a symbol.
+    symbol: str
+        Name of the new symbol, e.g. 'TSLA'
+    date: str of format 'YYYY-MM-DD' or datetime.datetime Object
+        The date on which the symbol was added to/removed from the index.
+    data_path: str
+        String that represents the absolute path to where the `data` folder is stored.
+
+    Returns
+    -------
+    None but overrides the current histfile, adding a new entry.
+
+    For more information on how to maintain the histfile please refer to the online documentation.
+    """
+
+    if (action != 'add') and (action != 'remove'):
+        raise ValueError("action must be either 'add' or 'remove'")
+
+    if isinstance(date, str):
+        date = dt.datetime.strptime(date, '%Y-%m-%d')
+    elif isinstance(date, dt.datetime):
+        pass
+    else:
+        raise TypeError("date_added must be a string formatted 'YYYY-MM-DD' or a datetime.datetime object!")
+
+    pde.ExcelFormatter.header_style = None
+    hist = pd.read_excel(data_path + 'data\\lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
+
+    last_row = hist.symbols.values[-1:][0].split(',')
+
+    if action == 'add':
+        last_row.append(symbol)
+        new_row = ','.join(sorted(last_row))
+    else:
+        last_row.remove(symbol)
+        new_row = ','.join(sorted(last_row))  # will create an Error if symbol not in last row
+
+    new_entry = pd.DataFrame(data={'added': symbol if action == 'add' else '',
+                                   'removed': symbol if action == 'remove' else '',
+                                   'symbols': new_row},
+                             index=[date])
+
+    hist = pd.concat([hist, new_entry])
+    hist.index.name = 'date'
+    hist.to_excel(data_path + 'data\\lib\\^HIST.xlsx')
+    return None

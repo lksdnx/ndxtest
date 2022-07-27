@@ -7,7 +7,7 @@ from core.strategy import Strategy
 from indicators.candlesticks import bullish_pin_bar
 from indicators.priceaction import gap_down_wick, gap_up_wick
 from indicators.indicators import sma
-import setuptools
+import core.utils as ut
 
 DATA_PATH = ''
 
@@ -15,7 +15,7 @@ DATA_PATH = ''
 if __name__ == "__main__":
     # pd.set_option('display.max_rows', None)
     # pd.set_option('display.max_columns', None)
-    help(Strategy)
+
     exit()
     bt = BackTest(data_path='data\\lib\\',
                   output_path='C:\\Users\\lukas\\OneDrive\\Desktop\\output\\',

@@ -34,10 +34,9 @@ import pandas.io.formats.excel as pde
 import numpy as np
 import yfinance as yf
 from distutils.dir_util import copy_tree
-from ndxtest import DATA_PATH
 
 
-def constituents(start_date, end_date, lag, data_path=DATA_PATH):
+def constituents(start_date, end_date, lag, data_path=''):
     """Returns a dict of symbols and date ranges of inclusion in the index between the start_date and the end_date.
 
     This function is called during initialization of a new instance of the BackTest class. It's purpose is to read from
@@ -66,7 +65,7 @@ def constituents(start_date, end_date, lag, data_path=DATA_PATH):
     For more information please refer to the docstrings of the BackTest class and its methods as well as the online
     documentation.
     """
-    hist = pd.read_excel(data_path + 'data\\lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
+    hist = pd.read_excel(data_path + 'lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
 
     dr = pd.date_range(start_date, end_date)
     edr = pd.date_range(start_date - lag, end_date)
@@ -116,7 +115,7 @@ def constituents(start_date, end_date, lag, data_path=DATA_PATH):
     return cons
 
 
-def download_batch(symbol_list, period='5y', data_path=DATA_PATH):
+def download_batch(symbol_list, period='5y', data_path=''):
     """This function downloads price data for new symbols from https://finance.yahoo.com/ and performs some formatting.
 
     Parameters
@@ -138,7 +137,7 @@ def download_batch(symbol_list, period='5y', data_path=DATA_PATH):
     For additional information please refer to the online documentation.
     """
 
-    os.mkdir(data_path + f'data\\downloaded_{str(dt.datetime.now())[:10]}\\')
+    os.mkdir(data_path + f'downloaded_{str(dt.datetime.now())[:10]}\\')
     for symbol in symbol_list:
         print(f'Loading {symbol}...')
         try:
@@ -165,13 +164,13 @@ def download_batch(symbol_list, period='5y', data_path=DATA_PATH):
             print(f"{len(df.index)} records downloaded {symbol}.")
 
             if len(df.index) > 1:
-                df.to_csv(DATA_PATH + f'data\\downloaded_{str(dt.datetime.now())[:10]}\\' + f'{symbol}.csv')
+                df.to_csv(data_path + f'data\\downloaded_{str(dt.datetime.now())[:10]}\\' + f'{symbol}.csv')
 
         except KeyError or ValueError or AttributeError:
             print(f'Error processing {symbol}... (may be delisted)')
 
 
-def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', new_entries=0, symbols=None, data_path=DATA_PATH):
+def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', new_entries=0, symbols=None, data_path=''):
     """This function updates all active symbols in data\\lib\\.
 
     Active symbols are read from the from the 'histfile'. The histfile as of now has to be updated manually
@@ -218,13 +217,13 @@ def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', n
     copy_tree(from_dir, to_dir)  # a safety backup of the lib folder is generated prior to updating
 
     if symbols is None:
-        hist = pd.read_excel(DATA_PATH + 'data\\lib\\^HIST.xlsx')
+        hist = pd.read_excel(data_path + 'data\\lib\\^HIST.xlsx')
         activesymbols = sorted(list(set(','.join(hist.symbols.values[-(new_entries + 1):]).split(','))))
         # all symbols within 'last_rows' of the histfile are updated
     else:
         activesymbols = symbols
 
-    lib = [symbol[:-4] for symbol in os.listdir(DATA_PATH + 'data\\lib\\') if symbol.endswith('.csv')]
+    lib = [symbol[:-4] for symbol in os.listdir(data_path + 'data\\lib\\') if symbol.endswith('.csv')]
     activesymbols.insert(0, index_symbol)
     approved = False
     breaker = False
@@ -255,13 +254,13 @@ def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', n
                 print(f"{len(df.index)} records downloaded for {symbol}...")
 
                 if len(df.index) > 1:
-                    df.to_csv(DATA_PATH + f'data\\lib\\{symbol}.csv')
+                    df.to_csv(data_path + f'data\\lib\\{symbol}.csv')
 
             except KeyError or ValueError or AttributeError:
                 print(f'Error processing {symbol}... (may be delisted)')
 
         else:  # the symbol already has a .csv file in //lib
-            main = pd.read_csv(DATA_PATH + f'data\\lib\\{symbol}.csv', index_col='date', parse_dates=[0])
+            main = pd.read_csv(data_path + f'data\\lib\\{symbol}.csv', index_col='date', parse_dates=[0])
             time.sleep(.3)
             try:
                 data = yf.Ticker(symbol)
@@ -329,7 +328,7 @@ def update_lib(index_symbol='^GSPC', period='3mo', period_first_download='5y', n
     return None
 
 
-def histfile_rename_symbol(old, new, data_path=DATA_PATH):
+def histfile_rename_symbol(old, new, data_path=''):
     """Renames a specific symbol in the histfile.
 
     Parameters
@@ -368,7 +367,7 @@ def histfile_rename_symbol(old, new, data_path=DATA_PATH):
     return None
 
 
-def histfile_new_entry(action, symbol, date, data_path=DATA_PATH):
+def histfile_new_entry(action, symbol, date, data_path=''):
     """Creates a new entry in the histfile with a symbol and the date on which it was added to/removed from the index.
 
     Parameters

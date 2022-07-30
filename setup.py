@@ -10,6 +10,7 @@ with open("README.md", "r") as readme_file:
 requirements = ["numpy>=1.22.0",
                 "pandas>=1.3.0",
                 "yfinance>=0.1.74",
+                "matplotlib>=3.4.2",
                 "mplfinance>=0.12.9b1",
                 "fpdf>=1.7.2",
                 "seaborn>=0.11.2",

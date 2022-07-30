@@ -33,6 +33,8 @@
         <list>
           <option value="type.index" />
           <option value="bool.__getitem__" />
+          <option value="Methods" />
+          <option value="_______" />
         </list>
       </option>
     </inspection_tool>

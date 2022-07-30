@@ -10,24 +10,21 @@ from indicators.priceaction import gap_down_wick, gap_up_wick
 from indicators.indicators import sma
 import core.utils as ut
 
-DATA_PATH = ''
-
 
 if __name__ == "__main__":
     # pd.set_option('display.max_rows', None)
     # pd.set_option('display.max_columns', None)
-    print(ndxtest.DATA_PATH)
-    ndxtest.set_data_path('C:\\Users\\lukas\\OneDrive\\Desktop\\')
-    print(ndxtest.DATA_PATH)
+
+    bt = BackTest('C:\\Users\\lukas\\OneDrive\\Desktop\\')
+    bt.import_data(start_date=dt.datetime(2021, 1, 1), end_date=dt.datetime(2022, 6, 1), lag=dt.timedelta(days=50))
+
     exit()
-    bt = BackTest(data_path='data\\lib\\',
-                  output_path='C:\\Users\\lukas\\OneDrive\\Desktop\\output\\',
-                  start_date=dt.datetime(2021, 1, 1),
+    bt = BackTest(start_date=dt.datetime(2021, 1, 1),
                   end_date=dt.datetime(2022, 6, 1),
                   lag=dt.timedelta(days=50),
                   runtime_messages=True,
                   date_range_messages=False)
-
+    exit()
     s = Strategy()
     s.add_entry_long_cond(-2, gap_down_wick, False)
     s.add_entry_long_cond(-1, bullish_pin_bar, False)
@@ -36,7 +33,7 @@ if __name__ == "__main__":
 
     bt.generate_signals(s)
 
-    bt.execute_signals(eqc_method='full')
+    bt.run_backtest(eqc_method='full')
     bt.report()
 
     print(s)

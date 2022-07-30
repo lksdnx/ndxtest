@@ -3,6 +3,7 @@ wheel==0.37.1
 numpy==1.22.4
 pandas==1.4.2
 yfinance==0.1.74
+matplotlib==3.4.2
 mplfinance==0.12.9b1
 fpdf==1.7.2
 seaborn==0.11.2

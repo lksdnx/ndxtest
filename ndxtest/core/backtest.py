@@ -45,7 +45,7 @@ class Portfolio:
     Attributes
     ----------
     self.max_positions: int
-        Maximum number of positions (slots). No more positions are entered when all slots are filled.
+        Maximum number of positions (slots). No positions are entered when all slots are filled.
     self.cash: float
         Available unrestricted cash in the balance.
     self.commission: float
@@ -331,8 +331,103 @@ class Portfolio:
 class BackTest:
     """This is the BackTest class, use it to run backtests of your trading strategies on an index level.
 
+    This doctsring primarily focuses on listing the class attributes and class methods. For information on how to use
+    this class please refer to the online documentation.
+
+    The 'default' values refer to the values set during initialization of an instance of the class.
+
     Attributes
     ----------
+    self.runtime_messages: bool, default=True
+        If True, prints elapsed time for data import and other computations to the console.
+    self.data_path: str
+        The path to the data folder.
+    self.output_path: str, default=self.data_path + 'data\\output\\'
+        The path to the output folder.
+    self.data_path_symbols: list
+        List of all symbols for which .csv files were found in data\\lib.
+    self.dtypes: dict
+        Dictionary containing the dtypes to use for columns during import of data.
+
+    self.input_data: dict, default={}
+        Dictionary containing the imported price data. {'AAPL': pd.DataFrame(...), ..., 'ZTS': pd.DataFrame(...)}
+    self.data: dict, default=None
+        Copy of self.input_data with computed trading signals added to the pd.DataFrames.
+    self.input_index: pd.DataFrame, default=None
+        pd.DataFrame containing the price data of the reference index. As of now the S&P 500 (Ticker Symbol = '^GSPC')
+    self.index: pd.DataFrame, default=None
+        Copy of self.index with computed indicators (needed for signal generation) added to the DataFrame.
+
+    self.t0, default=None
+        Used internally to store times needed for computations.
+    self.tr, default=None
+        Used internally to store times needed for computations.
+    self.runtime, default=None
+        Used internally to store times needed for computations.
+
+    self.sd: datetime.datetime object or str, default=None
+        The start date of the backtest. If weekend or US market closed, the next trading day will be set as start date.
+    self.ed: datetime.datetime object or str, default=None
+        The end date of the backtest. If weekend or US market closed, the next trading day will be set as end date.
+    self.duration: datetime.timedelta object, default=None
+        The duration of the backtest.
+    self.dr: pd.DateRange, default=None
+        The range of dates between start and end date of the backtest.
+    self.edr: pd.DateRange, default=None
+        The range of dates added in front due to the lag parameter, plus the range of dates between start and end date.
+    self.date_range_messages: bool, default=False
+        If True, prints some extra information regarding missing price data for the backtest period to the console.
+    self.trading_days: list, default=None
+        A list of all trading days between start and end date. (Intersection of self.dr and self.input_index.index)
+
+    self.constituents: dict, default=None
+        A nested dictionary. See ndxtest.utils.constituents() docstring.
+    self.existing_symbols: list, default=None
+        A list of all symbols included in the index during the specified time period and exist in data\\lib.
+    self.missing_symbols: list, default=None
+        A list of all symbols included in the index during the specified time period and DO NOT exist in data\\lib.
+
+    self.commission: float, default=None
+        Commission that is paid upon entering/exiting positions (e.g. 0.01 would be 1%)
+    self.max_positions: int, default=None
+        Maximum number of positions (slots). No positions are entered when all slots are filled.
+    self.initial_equity: float, default=None
+        The initial capital to start with.
+    self.max_trade_duration: int, default=None
+        A maximum number of days before positions will be (independent of signals) closed.
+    self.stoploss: float, default=None
+        The maximum % (e.g. 0.05) of adverse price movement before positions will be (independent of signals) closed.
+    self.entry_mode: str, default=None
+        The mode of entry. 'open' = buy on open to the day after signal completion. Currently only this is implemented.
+
+    self.signals: defaultdict(list), default=defaultdict(list)
+        A dictionary containing the computed signals with the respective trading days as keys.
+    self.eqc: dict, default={}
+        Is filled with daily ohlc date for the portfolio while the backtest runs. Used to generate the equity curve.
+    self.eqc_df: pd.DataFrame(), default=pd.DataFrame()
+        A pd.DataFrame generated from self.eqc is stored in this attribute.
+    self.results: dict, default={}
+        Is filled with some high-level results (e.g. the winrate) of the backtest. Used to generate reports.
+    self.drawdown: dict, default={}
+        Is filled with data used to calculate the (yearly) maximum drawdown.
+    self.exposure: dict, default={}
+        Is filled with info on the exposure to the market over time (e.g. invested cap vs cash, number of positions)
+    self.correlations: dict, default={}
+        -- currently to implemented!
+    self.log_df: pd.DataFrame(), default=pd.DataFrame()
+        Is keeping a log of trades taken. Used to generate reports.
+
+    self.opt: bool, default=False
+        ...currently not implemented!
+    self.optimization_results: pd.Series, default=None
+        ...currently not implemented!
+    self.best_parameters: dict, default=None
+        ...currently not implemented!
+    self.parameters: dict, default={}
+        ...currently not implemented!
+    self.parameter_permutations: list, default=[]
+        ...currently not implemented!
+
 
     Methods
     -------
@@ -359,19 +454,16 @@ class BackTest:
     """
 
     def __init__(self, data_path, runtime_messages=True):
-        # start_date=dt.datetime(2015, 9, 1),
-        # end_date=dt.datetime(2021, 9, 1),
-        # lag=dt.timedelta(days=200),
-        # date_range_messages=False):
         """Defines the class attributes and connects the instance to the data folder. Fails if data folder not present.
 
         After setting the data_path, this function also performs some tests regarding the contents of the `data` folder
         that are necessary for the proper functioning of the ndxtest package.
 
-        Parameters
-        ----------
-        data_path: str
+        :param str data_path:
             The data_path has to represent the absolute location of the `data` folder.
+
+        :returns:
+            None
         """
 
         if not isinstance(data_path, str):
@@ -418,7 +510,9 @@ class BackTest:
         self.input_index = None
         self.index = None
 
-        self.t0, self.tr, self.runtime = None, None, None
+        self.t0 = None
+        self.tr = None
+        self.runtime = None
 
         self.sd = None
         self.ed = None
@@ -441,12 +535,12 @@ class BackTest:
 
         self.signals = defaultdict(list)
         self.eqc = {}
+        self.eqc_df = pd.DataFrame()
         self.results = {}
         self.drawdown = {}
         self.exposure = {}
         self.correlations = {}
         self.log_df = pd.DataFrame()
-        self.equity_curve_df = pd.DataFrame()
 
         self.opt = False
         self.optimization_results = None
@@ -455,10 +549,47 @@ class BackTest:
         self.parameter_permutations = []
 
     def import_data(self, start_date, end_date, lag, date_range_messages=False):
+        """Imports the necessary price data for the defined time period of the backtest.
+
+        :param datetime.datetime or str start_date:
+            The start date of the backtest. If weekend or US market closed, the next trading day will be set as start date.
+        :param datetime.datetime or str end_date:
+            The end date of the backtest. If weekend or US market closed, the next trading day will be set as end date.
+        :param datetime.timedelta or int lag:
+            A timedelta that is added in front of the start_date. This is necessary for calculating indicators that
+            depend on previous price data such as moving averages among others.
+        :param bool date_range_messages:
+            If True, prints some extra information regarding missing price data for the backtest period to the console.
+
+        :returns: None
+        """
+
+        if not isinstance(start_date, dt.datetime):
+            if not isinstance(lag, str):
+                raise TypeError("Parameter start_date must be of type datetime.datetime or str formatted 'YYYY-MM-DD'.")
+            else:
+                self.sd = dt.datetime.strptime(date_string=start_date, format='%Y-%m-%d')
+        else:
+            self.sd = start_date
+
+        if not isinstance(end_date, dt.datetime):
+            if not isinstance(lag, str):
+                raise TypeError("Parameter start_date must be of type datetime.datetime or str formatted 'YYYY-MM-DD'.")
+            else:
+                self.ed = dt.datetime.strptime(date_string=start_date, format='%Y-%m-%d')
+        else:
+            self.sd = end_date
+
+        if not isinstance(lag, dt.timedelta):
+            if not isinstance(lag, int):
+                raise TypeError('Parameter lag must be of type datetime.timedelta or int.')
+            else:
+                lag = dt.timedelta(days=lag)
 
         self.t0 = time.time()
-        self.sd, self.ed, self.duration = start_date, end_date, end_date - start_date
-        self.dr, self.edr = pd.date_range(start_date, end_date), pd.date_range(start_date - lag, end_date)
+        self.duration = self.ed - self.sd
+        self.dr = pd.date_range(self.sd, self.ed)
+        self.edr = pd.date_range(self.sd - lag, self.ed)
         self.date_range_messages = date_range_messages
 
         self.input_index = pd.read_csv(self.data_path + 'lib\\^GSPC.csv', engine='c', dtype=self.dtypes,
@@ -667,27 +798,27 @@ class BackTest:
         self.log_df = self.log_df.loc[self.log_df['exit_date'] != 0]
 
         if eqc_method == 'full':
-            self.equity_curve_df = pd.DataFrame.from_dict(data=self.eqc, orient='index')
-            self.equity_curve_df['d%change'] = self.equity_curve_df.close.pct_change() * 100
-            self.equity_curve_df['c%change'] = (((self.equity_curve_df.close / initial_equity) - 1) * 100)
-            self.equity_curve_df = self.equity_curve_df.round(2)
-            self.equity_curve_df.to_csv(self.output_path + 'equity_curve.csv')
+            self.eqc_df = pd.DataFrame.from_dict(data=self.eqc, orient='index')
+            self.eqc_df['d%change'] = self.eqc_df.close.pct_change() * 100
+            self.eqc_df['c%change'] = (((self.eqc_df.close / initial_equity) - 1) * 100)
+            self.eqc_df = self.eqc_df.round(2)
+            self.eqc_df.to_csv(self.output_path + 'equity_curve.csv')
 
         if eqc_method == 'approx':
             x = self.log_df.drop_duplicates(subset=['exit_date'], keep='last')
             x = x.set_index('exit_date')['market_value']
-            self.equity_curve_df = pd.DataFrame(data={'close': np.nan}, index=self.index.index)
-            self.equity_curve_df.loc[x.index, 'close'] = x
-            self.equity_curve_df.fillna(method="ffill", inplace=True)
-            self.equity_curve_df.fillna(self.initial_equity, inplace=True)
-            self.equity_curve_df['d%change'] = self.equity_curve_df.close.pct_change() * 100
-            self.equity_curve_df['c%change'] = (((self.equity_curve_df.close / initial_equity) - 1) * 100)
-            self.equity_curve_df = self.equity_curve_df.round(2)
-            self.equity_curve_df.to_csv(self.output_path + 'equity_curve.csv')
+            self.eqc_df = pd.DataFrame(data={'close': np.nan}, index=self.index.index)
+            self.eqc_df.loc[x.index, 'close'] = x
+            self.eqc_df.fillna(method="ffill", inplace=True)
+            self.eqc_df.fillna(self.initial_equity, inplace=True)
+            self.eqc_df['d%change'] = self.eqc_df.close.pct_change() * 100
+            self.eqc_df['c%change'] = (((self.eqc_df.close / initial_equity) - 1) * 100)
+            self.eqc_df = self.eqc_df.round(2)
+            self.eqc_df.to_csv(self.output_path + 'equity_curve.csv')
 
-        self.drawdown = pd.DataFrame(data={'roll_max': self.equity_curve_df.close.rolling(252, min_periods=1).max()},
-                                     index=self.equity_curve_df.index)
-        self.drawdown['daily'] = (self.equity_curve_df.close / self.drawdown.roll_max - 1) * 100
+        self.drawdown = pd.DataFrame(data={'roll_max': self.eqc_df.close.rolling(252, min_periods=1).max()},
+                                     index=self.eqc_df.index)
+        self.drawdown['daily'] = (self.eqc_df.close / self.drawdown.roll_max - 1) * 100
         self.drawdown['daily_max'] = self.drawdown.daily.rolling(252, min_periods=1).min()
         self.drawdown = self.drawdown.round(2)
 
@@ -702,8 +833,8 @@ class BackTest:
                         '%profitable': (np.count_nonzero(self.log_df.profitable != 0) / len(
                             self.log_df.profitable) * 100).__round__(2),
                         'commission_paid': p.commission_paid.__round__(2),
-                        'perf': self.equity_curve_df['c%change'][-1],
-                        'ann_perf': (((1 + ((self.equity_curve_df.close[-1] - initial_equity) / initial_equity))
+                        'perf': self.eqc_df['c%change'][-1],
+                        'ann_perf': (((1 + ((self.eqc_df.close[-1] - initial_equity) / initial_equity))
                                       ** (1 / (self.duration.days / 365.25)) - 1) * 100).__round__(2),
                         'bm_perf': self.index['c%change'][-1],
                         'bm_ann_perf': (((1 + (
@@ -720,7 +851,6 @@ class BackTest:
             print(f'Total runtime ex. data import:              ...{self.runtime} sec.')
 
     def optimize_strategy(self, strategy, parameters, run_best=True):
-        # raise NotImplementedError('This class method is currently not implemented!')
 
         def frange(x, y, jump):
             while x <= y:
@@ -798,7 +928,7 @@ class BackTest:
 
         fig1, axs1 = plt.subplots(3, 1, figsize=(9, 6))
         axs1[0].plot(self.index['c%change'].index, self.index['c%change'], color='blue', label='Benchmark')
-        axs1[0].plot(self.equity_curve_df['c%change'].index, self.equity_curve_df['c%change'], color='black',
+        axs1[0].plot(self.eqc_df['c%change'].index, self.eqc_df['c%change'], color='black',
                      label='Backtest')
         axs1[0].set_xticks([])
         axs1[0].set_xticklabels([])
@@ -882,7 +1012,7 @@ class BackTest:
         pdf.cell(w=80, align='', txt=f"Initial Equity [$]:", ln=0)
         pdf.cell(w=80, align='', txt=f"{self.initial_equity}", ln=1)
         pdf.cell(w=80, align='', txt=f"Final Equity [$]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.equity_curve_df.close[-1]}", ln=1)
+        pdf.cell(w=80, align='', txt=f"{self.eqc_df.close[-1]}", ln=1)
         pdf.cell(w=80, align='', txt=f"Max. Drawdown [%]:", ln=0)
         pdf.cell(w=80, align='', txt=f"{self.results['max_drawdown']}", ln=1)
         pdf.cell(w=80, align='', txt=f"Performance Strategy [%]:", ln=0)

@@ -16,7 +16,7 @@ if __name__ == "__main__":
     # pd.set_option('display.max_columns', None)
 
     bt = BackTest('C:\\Users\\lukas\\OneDrive\\Desktop\\')
-    bt.import_data(start_date=dt.datetime(2021, 1, 1), end_date=dt.datetime(2022, 6, 1), lag=dt.timedelta(days=50))
+    bt.import_data(start_date=dt.datetime(2021, 1, 1), end_date=dt.datetime(2022, 6, 1), lag=50)
 
     exit()
     bt = BackTest(start_date=dt.datetime(2021, 1, 1),

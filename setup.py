@@ -15,7 +15,7 @@ requirements = ["numpy>=1.21.0",
                 "fpdf>=1.7.2",
                 "seaborn>=0.11.2",
                 "scipy>=1.7.0",
-                "sphinx>=5.5.0"]
+                "sphinx>=5.1.1"]
 
 setup(name="ndxtest", version="0.0.3",
       author="lksdnx",

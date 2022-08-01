@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 with open("README.md", "r") as readme_file:
     readme = readme_file.read()
 
-requirements = ["numpy>=1.22.0",
+requirements = ["numpy>=1.21.0",
                 "pandas>=1.3.0",
                 "yfinance>=0.1.74",
                 "matplotlib>=3.4.2",

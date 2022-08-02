@@ -6,8 +6,15 @@
 Welcome to ndxtest's documentation!
 ===================================
 
-.. automodule:: ndxtest.core.backtest
+.. automodule:: ndxtest.backtest
     :members:
+.. automodule:: ndxtest.indicators
+    :members:
+.. automodule:: ndxtest.priceaction
+    :members:
+.. automodule:: ndxtest.utils
+    :members:
+
 
 .. toctree::
    :maxdepth: 2

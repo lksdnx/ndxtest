@@ -1,15 +1,12 @@
 """This module contains various functions, in particular for updating the data library and the histfile.
 
-Imports
+Classes
 -------
-os
-time
-datetime as dt
-pandas as pd
-pandas.io.formats.excel as pde
-numpy as np
-copy_tree from distutils.dir_util
-DATA_PATH from ndxtest
+Portfolio
+    The Portfolio class is a code container that is not directly used by users of this package. The instances of the
+    BackTest class instantiate a portfolio from this class. Within the .run_backtest() method of the BackTest instance
+    the portfolio and its methods help to structure the codebase and make it more readable. The Portfolio class may be
+    shifted to ndxtest.core.utils in future releases.
 
 Functions
 ---------

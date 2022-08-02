@@ -1,3 +1,4 @@
+"""doc"""
 import numpy as np
 import pandas as pd
 
@@ -32,7 +33,7 @@ def ssma(arr, n, input_col='close', full_window=True):
     return arr.ewm(alpha=1 / n, min_periods=n if full_window else 1).mean().astype(DTYPE)
 
 
-def atr(arr: pd.DataFrame, n=14, out='average_true_range', full_window=True):
+def atr(arr: pd.DataFrame, n=14, full_window=True):
     """Calculates the average true range indicator. The 'out' argument defines the output of the function and
     can be either 'true_range', 'average_true_range' or 'relative_true_range' (default = 'average_true_range').
     Performance: 1.05 ms per 10000 row df."""
@@ -40,32 +41,30 @@ def atr(arr: pd.DataFrame, n=14, out='average_true_range', full_window=True):
     true_range = pd.Series(data=true_range, index=arr.index).astype(DTYPE)
     average_true_range = true_range.ewm(alpha=1 / n, min_periods=n if full_window else 1).mean().astype(DTYPE)
     relative_true_range = (true_range / average_true_range).astype(DTYPE)
-    return eval(out)
+    return average_true_range
 
 
-def adx(df: pd.DataFrame, n=14, out='average_directional_index', full_window=True):
+def adx(arr: pd.DataFrame, n=14, full_window=True):
     """Calculates the average directional index. The 'out' argument defines the output of the function and
     can be either 'directional_index' or 'average_directional_index' (default = 'average_directional_index').
     Performance: 3.90 ms per 10000 row df."""
-    if isinstance(df, pd.DataFrame):
-        plus_dm = (df.high - df.high.shift(1)).astype(DTYPE)
-        minus_dm = (df.low.shift(1) - df.low).astype(DTYPE)
+    if isinstance(arr, pd.DataFrame):
+        plus_dm = (arr.high - arr.high.shift(1)).astype(DTYPE)
+        minus_dm = (arr.low.shift(1) - arr.low).astype(DTYPE)
         positive_dm = np.where(np.greater(plus_dm, minus_dm) & np.greater(plus_dm, 0), plus_dm, 0)
-        positive_dm = pd.Series(positive_dm, index=df.index, dtype=DTYPE)
+        positive_dm = pd.Series(positive_dm, index=arr.index, dtype=DTYPE)
         negative_dm = np.where(np.greater(minus_dm, plus_dm) & np.greater(minus_dm, 0), minus_dm, 0)
-        negative_dm = pd.Series(negative_dm, index=df.index, dtype=DTYPE)
-        average_true_range = atr(df, n, out='average_true_range', full_window=full_window)
+        negative_dm = pd.Series(negative_dm, index=arr.index, dtype=DTYPE)
+        average_true_range = atr(arr, n, full_window=full_window)
 
         positive_di = (ema(positive_dm, n, full_window=full_window) / average_true_range) * 100
         negative_di = (ema(negative_dm, n, full_window=full_window) / average_true_range) * 100
         directional_index = (abs(positive_di - negative_di) / (positive_di + negative_di)).astype(DTYPE) * 100
         average_directional_index = \
             directional_index.ewm(alpha=1 / n, min_periods=n if full_window else 1).mean().astype(DTYPE)
-    return eval(out)
-
-
-def psar():
-    pass
+        return average_directional_index
+    else:
+        raise TypeError("Argument 'arr' must be a pandas.DataFrame.")
 
 
 def rsi(arr, n=14, input_col='close', full_window=True):

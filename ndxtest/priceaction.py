@@ -1,5 +1,42 @@
 import pandas as pd
 import numpy as np
+import operator
+
+
+def candle(arr, prev='c', curr='c', ineq='gt'):
+    """pass"""
+    if not isinstance(prev, str) and isinstance(curr, str) and isinstance(ineq, str):
+        raise TypeError("The arguments 'prev', 'curr' and 'ineq' must be of type str.")
+
+    if prev not in ['o', 'h', 'l', 'c']:
+        raise ValueError("The argument 'prev' must equal to either 'o', 'h', 'l' or 'c'.")
+
+    if curr not in ['o', 'h', 'l', 'c']:
+        raise ValueError("The argument 'curr' must equal to either 'o', 'h', 'l' or 'c'.")
+
+    if ineq not in ['gt', 'ge', 'lt', 'le']:
+        raise ValueError("The argument 'curr' must equal to either 'gt', 'ge', 'lt' or 'le'.")
+
+    ohlc_map = {'o': 'open',
+                'h': 'high',
+                'l': 'low',
+                'c': 'close'}
+
+    inequality_sign_map = {
+        'gt': np.greater,
+        'ge': np.greater_equal,
+        'lt': np.less,
+        'le': np.less_equal}
+
+    return inequality_sign_map[ineq](arr[ohlc_map[prev]].shift(1), arr[ohlc_map[curr]])
+
+
+def green_candle(arr):
+    return arr['close'] > arr['open']
+
+
+def red_candle(arr):
+    return arr['close'] < arr['open']
 
 
 def bullish_pin_bar(arr, j=3):
@@ -41,3 +78,24 @@ def bullish_pib_pattern(arr):
 def bearish_pib_pattern(arr):
     """Detects pin bars followed by inside bars. The signal is generated on the inside bar."""
     return bearish_pin_bar(arr).shift(1) & inside_bar(arr)
+
+
+def gap_up_body(arr):
+    return np.maximum(arr['close'].shift(1), arr['open'].shift(1)) < arr['open']
+
+
+def gap_down_body(arr):
+    return np.minimum(arr['close'].shift(1), arr['open'].shift(1)) > arr['open']
+
+
+def gap_up_wick(arr):
+    return arr['high'].shift(1) < arr['open']
+
+
+def gap_down_wick(arr):
+    return arr['low'].shift(1) > arr['open']
+
+
+def inside_open(arr):
+    return (np.minimum(arr['close'].shift(1), arr['open'].shift(1)) < arr['open']) & \
+           (np.maximum(arr['close'].shift(1), arr['open'].shift(1)) > arr['open'])

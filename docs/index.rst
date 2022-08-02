@@ -6,6 +6,9 @@
 Welcome to ndxtest's documentation!
 ===================================
 
+.. automodule:: ndxtest.core.backtest
+    :members:
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:

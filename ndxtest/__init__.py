@@ -15,7 +15,7 @@ the subpackage ndxtest.core contains the following modules:
     utils.py
         Contains functions that help to update the data library and the histfile.
 the subpackage ndxtest.indicators contains the following modules:
-    candlesticks.py
+    priceaction.py
         Contains functions that check for the presence of specific candle types and patterns.
     comparative.py
         Contains functions that rank symbols within the index based on some other supplied indicators.
@@ -25,7 +25,7 @@ the subpackage ndxtest.indicators contains the following modules:
         The main module here. Contains many common indicators such as moving averages, the RSI or the MACD.
     priceaction.py
         Contains functions that check for specific price actions, e.g. gap downs/gap ups.
-        May be joined with candlesticks.py in future releases.
+        May be joined with priceaction.py in future releases.
 
 Functions
 ---------

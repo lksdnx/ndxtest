@@ -1,15 +1,9 @@
-import os
-import pandas as pd
-import numpy as np
 import datetime as dt
-import ndxtest
-from core.backtest import BackTest
-from core.strategy import Strategy
-from indicators.candlesticks import bullish_pin_bar
-from indicators.priceaction import gap_down_wick, gap_up_wick
-from indicators.indicators import sma
-import core.utils as ut
-
+from ndxtest.backtest import BackTest
+from ndxtest.strategy import Strategy
+from ndxtest.priceaction import bullish_pin_bar
+from ndxtest.priceaction import gap_down_wick, gap_up_wick
+from ndxtest.indicators import sma
 
 if __name__ == "__main__":
     # pd.set_option('display.max_rows', None)

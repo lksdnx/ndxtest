@@ -1,17 +1,17 @@
-"""This is backtest.py, the main module of the ndxtest package containing the BackTest class.
+"""This is backtest.py, the main module of the ndxtest package containing :class:`ndxtest.backtest.BackTest`.
 
 Classes
 -------
 Strategy
-    Class to build strategies that are given as a parameter to the `generate_signals` method of a BackTest instance.
+    Class to build strategies. Strategy objects are provided as a parameter to the `generate_signals` method of
+    :class:`ndxtest.backtest.BackTest`.
 BackTest
-    The BackTest class is where the bulk of the code of the ndxtest package is located. For a specific date range, it
-    imports the data from data\\lib\\. It accepts a Strategy object that can be built with the Strategy class.
-    It instantiates a portfolio from the Portfolio class of utils.py and runs a backtest of the provided strategy.
-    It can perform optimization of specific parameters provided within a strategy (comment: not included in the current
-    release!). Finally it produces reports in the form of .xlsx and .pdf files.
-
-For further information please refer to the class docstrings and to the online documentation.
+    :class:`ndxtest.backtest.BackTest` is where the bulk of the code of the ndxtest package is located.
+    It imports the data for a specific date range from data\\lib\\. It accepts a Strategy object that can be built
+    with :class:`ndxtest.backtest.Strategy`. It instantiates a portfolio from `ndxtest.utils.Portfolio` and runs
+    a backtest of the provided strategy. It can perform optimization of specific parameters provided within a strategy
+    (comment: parameter optimization not included in version 0.0.1) Finally, it produces reports in the form
+    of .xlsx and .pdf files.
 """
 
 import os
@@ -253,141 +253,141 @@ class Strategy:
 
 
 class BackTest:
-    """This is the BackTest class, use it to run backtests of your trading strategies on an index level.
+    """:class:`ndxtest.backtest.BackTest` run backtests of trading strategies on an index level. Please refer
+    to the user manual for examples how to use this class. The technical documentation focuses on listing
+    class attributes and methods.
 
-    This doctsring primarily focuses on listing the class attributes and class methods. For information on how to use
-    this class please refer to the online documentation.
+    Default values refer to the values set during initialization.
 
-    The 'default' values refer to the values set during initialization of an instance of the class.
+    :param runtime_messages: If True, prints elapsed time for data import and other computations to the console.
+    :type runtime_messages: bool, defaults=True
 
-    Attributes
-    ----------
-    self.runtime_messages: bool, default=True
-        If True, prints elapsed time for data import and other computations to the console.
-    self.data_path: str
-        The path to the data folder.
-    self.output_path: str, default=self.data_path + 'data\\output\\'
-        The path to the output folder.
-    self.data_path_symbols: list
-        List of all symbols for which .csv files were found in data\\lib.
-    self.dtypes: dict
-        Dictionary containing the dtypes to use for columns during import of data.
+    :param data_path: The absolute path to the data folder.
+    :type data_path: str
 
-    self.input_data: dict, default={}
-        Dictionary containing the imported price data. {'AAPL': pd.DataFrame(...), ..., 'ZTS': pd.DataFrame(...)}
-    self.data: dict, default=None
-        Copy of self.input_data with computed trading signals added to the pd.DataFrames.
-    self.input_index: pd.DataFrame, default=None
-        pd.DataFrame containing the price data of the reference index. As of now the S&P 500 (Ticker Symbol = '^GSPC')
-    self.index: pd.DataFrame, default=None
-        Copy of self.index with computed indicators (needed for signal generation) added to the DataFrame.
+    :param data_path_symbols: List of all symbols for which .csv files were found in data\\lib.
+    :type data_path_symbols: list, default=[]
 
-    self.t0, default=None
-        Used internally to store times needed for computations.
-    self.tr, default=None
-        Used internally to store times needed for computations.
-    self.runtime, default=None
-        Used internally to store times needed for computations.
+    :param dtypes: Dictionary containing the dtypes to use for columns during import of data into pd.DataFrames.
+    :type dtypes: dict, default={...}
 
-    self.sd: datetime.datetime object or str, default=None
-        The start date of the backtest. If weekend or US market closed, the next trading day will be set as start date.
-    self.ed: datetime.datetime object or str, default=None
-        The end date of the backtest. If weekend or US market closed, the next trading day will be set as end date.
-    self.duration: datetime.timedelta object, default=None
-        The duration of the backtest.
-    self.dr: pd.DateRange, default=None
-        The range of dates between start and end date of the backtest.
-    self.edr: pd.DateRange, default=None
-        The range of dates added in front due to the lag parameter, plus the range of dates between start and end date.
-    self.date_range_messages: bool, default=False
-        If True, prints some extra information regarding missing price data for the backtest period to the console.
-    self.trading_days: list, default=None
-        A list of all trading days between start and end date. (Intersection of self.dr and self.input_index.index)
+    :param input_data: Dictionary containing the imported price data. {'AAPL': pd.DataFrame(...), ..., 'ZTS': pd.DataFrame(...)}
+    :type input_data: dict, default={}
 
-    self.constituents: dict, default=None
-        A nested dictionary. See ndxtest.utils.constituents() docstring.
-    self.existing_symbols: list, default=None
-        A list of all symbols included in the index during the specified time period and exist in data\\lib.
-    self.missing_symbols: list, default=None
-        A list of all symbols included in the index during the specified time period and DO NOT exist in data\\lib.
+    :param data: Copy of `input_data` with computed trading signals added to the pd.DataFrames.
+    :type data: dict, default=None
 
-    self.commission: float, default=None
-        Commission that is paid upon entering/exiting positions (e.g. 0.01 would be 1%)
-    self.max_positions: int, default=None
-        Maximum number of positions (slots). No positions are entered when all slots are filled.
-    self.initial_equity: float, default=None
-        The initial capital to start with.
-    self.max_trade_duration: int, default=None
-        A maximum number of days before positions will be (independent of signals) closed.
-    self.stoploss: float, default=None
-        The maximum % (e.g. 0.05) of adverse price movement before positions will be (independent of signals) closed.
-    self.entry_mode: str, default=None
-        The mode of entry. 'open' = buy on open to the day after signal completion. Currently only this is implemented.
+    :param input_index: Contains the price data of the reference index. As of now the S&P 500 (Ticker Symbol = '^GSPC')
+    :type input_index: pd.DataFrame, default=None
 
-    self.signals: defaultdict(list), default=defaultdict(list)
-        A dictionary containing the computed signals with the respective trading days as keys.
-    self.eqc: dict, default={}
-        Is filled with daily ohlc date for the portfolio while the backtest runs. Used to generate the equity curve.
-    self.eqc_df: pd.DataFrame(), default=pd.DataFrame()
-        A pd.DataFrame generated from self.eqc is stored in this attribute.
-    self.results: dict, default={}
-        Is filled with some high-level results (e.g. the winrate) of the backtest. Used to generate reports.
-    self.drawdown: dict, default={}
-        Is filled with data used to calculate the (yearly) maximum drawdown.
-    self.exposure: dict, default={}
-        Is filled with info on the exposure to the market over time (e.g. invested cap vs cash, number of positions)
-    self.correlations: dict, default={}
-        -- currently to implemented!
-    self.log_df: pd.DataFrame(), default=pd.DataFrame()
-        Is keeping a log of trades taken. Used to generate reports.
+    :param index: Copy of `index` with computed indicators (needed for signal generation) added to the pd.DataFrame.
+    :type index: pd.DataFrame, default=None
 
-    self.opt: bool, default=False
-        ...currently not implemented!
-    self.optimization_results: pd.Series, default=None
-        ...currently not implemented!
-    self.best_parameters: dict, default=None
-        ...currently not implemented!
-    self.parameters: dict, default={}
-        ...currently not implemented!
-    self.parameter_permutations: list, default=[]
-        ...currently not implemented!
+    :param t0: Used internally to store times needed for execution of computations.
+    :type t0: time.time object, default=None
 
+    :param tr: Used internally to store times needed for execution of computations.
+    :type tr: time.time object, default=None
 
-    Methods
-    -------
-    __init__(self, data_path, runtime_messages=True):
-        Is responsible for connecting the new instance of the BackTest class to the data folder.
-    import_data(self, start_date, end_date, lag, date_range_messages=False):
-        Imports the needed price data into pd.Dataframes that are stored in a dictionary.
-    generate_signals(self, strategy):
-        Generates the trading signals. Accepts an instance of the Strategy class from strategy.py as a parameter.
-    run_backtest(...):
-        Runs the backtest, please refer to the docstring of the method itself for more information.
-    optimize_strategy(self, strategy, parameters, run_best=True):
-        Here you can optimize individual parameters of a strategy for better outcomes (Currently not implemented)
-    report(self):
-        Generates .pdf and .xlsx reports on the backtest in the .../data/output/ directory.
-    plot_ticker(self, symbol):
-        Plots the price and the signals during the backtest period for a given symbol.
-    query_missing_records(self, date):
-        Queries, whether any symbols lack price data for a specific date. Helps with debugging the data library.
-    setup_search(self, pattern, run_sampling=True):
-        Generates a report on how often the strategy generates signals and what price movements happen just after.
+    :param runtime: Used internally to store times needed for execution of computations.
+    :type runtime: time.time object, default=None
 
-    For further information please refer to the docstrings of the respective methods and to the online documentation.
+    :param sd: The start date of the backtest. If weekend or US market closed, the next trading day will be set as start date.
+    :type sd: datetime.datetime object or str, default=None
+
+    :param ed: The end date of the backtest. If weekend or US market closed, the next trading day will be set as end date.
+    :type ed: datetime.datetime object or str, default=None
+
+    :param duration: The duration of the backtest.
+    :type duration: datetime.timedelta object, default=None
+
+    :param dr: The range of dates between start and end date of the backtest.
+    :type dr: pd.DateRange, default=None
+
+    :param edr: Extended range of dates between start and end date to account for additional data needed for calulating lagging indicators.
+    :type edr: pd.DateRange, default=None
+
+    :param date_range_messages: If True, prints some extra information regarding missing price data for the backtest period to the console.
+    :type date_range_messages: bool, default=False
+
+    :param trading_days: A list of all trading days between start and end date. (Intersection of dr and input_index.index)
+    :type trading_days: list, default=None
+
+    :param constituents: A nested dictionary containing date ranges of index inclusion for all symbols. See `ndxtest.utils.constituents`.
+    :type constituents: dict, default=None
+
+    :param existing_symbols: A list of all symbols included in the index during the specified time period and exist in data\\lib.
+    :type existing_symbols: list, default=None
+
+    :param missing_symbols: A list of all symbols included in the index during the specified time period and *do not* exist in data\\lib.
+    :type missing_symbols: list, default=None
+
+    :param commission: Commission that is paid upon entering/exiting positions (e.g. 0.01 would be 1%)
+    :type commission: float, default=None
+
+    :param max_positions: Maximum number of positions (slots). No positions are entered when all slots are filled.
+    :type max_positions: int, default=None
+
+    :param initial_equity: The initial capital to start with.
+    :type initial_equity: float, default=None
+
+    :ivar max_trade_duration: A maximum number of days before positions will be closed. Will close positions independent of any signals provided by the strategy.
+    :type max_trade_duration: int, default=None
+
+    :param stoploss: The maximum % (e.g. 0.05) of adverse price movement before positions will be closed. Will close positions independent of any signals provided by the strategy.
+    :type stoploss: float, default=None
+
+    :param entry_mode: The mode of entry. 'open' = buy the open on the day after signal completion. As of now (Version 0.0.1), this is the only mode implemented.
+    :type entry_mode: str, default=None
+
+    :param signals: A dictionary containing the computed signals for the symbols with the respective trading days as keys.
+    :type signals: defaultdict(list), default=defaultdict(list)
+
+    :param eqc: Gets filled with daily ohlc data for the portfolio while the backtest runs. Used to generate the equity curve.
+    :type eqc: dict, default={}
+
+    :param eqc_df: A pd.DataFrame generated from `eqc` is stored in this attribute.
+    :type eqc_df: pd.DataFrame, default=pd.DataFrame
+
+    :param results: Gets filled with some high-level results (e.g. the winrate) of the backtest. Used to generate reports.
+    :type results: dict, default={}
+
+    :param drawdown: Gets filled with data used to calculate the (yearly) maximum drawdown.
+    :type drawdown: dict, default={}
+
+    :param exposure: Gets filled with info on the regarding the current exposure to the market.
+    :type exposure: dict, default={}
+
+    :param correlations: Is currently not used (Version 0.0.1).
+    :type correlations: dict, default={}
+
+    :param log_df: Is keeping a log of trades. Used to generate reports.
+    :type log_df: pd.DataFrame, default=pd.DataFrame
+
+    :param opt: Currently not used, optimization not implemented (Version: 0.0.1).
+    :type opt: bool, default=False
+
+    :param optimization_results: Currently not used, optimization not implemented (Version: 0.0.1).
+    :type optimization_results: pd.Series, default=None
+
+    :param best_parameters: Currently not used, optimization not implemented (Version: 0.0.1).
+    :type best_parameters: dict, default=None
+
+    :param parameters: Currently not used, optimization not implemented (Version: 0.0.1).
+    :type parameters: default={}
+
+    :param parameter_permutations: Currently not used, optimization not implemented (Version: 0.0.1).
+    :type parameter_permutations: list, default=[]
     """
 
     def __init__(self, data_path, runtime_messages=True):
-        """Defines the class attributes and connects the instance to the data folder. Fails if data folder not present.
+        """Constructor Method. Defines class attributes and connects the instance to the data folder. Fails if data folder not present.
 
-        After setting the data_path, this function also performs some tests regarding the contents of the `data` folder
-        that are necessary for the proper functioning of the ndxtest package.
+        :param data_path: The data_path has to represent the absolute location of the `data` folder.
+        :type data_path: str
 
-        :param str data_path:
-            The data_path has to represent the absolute location of the `data` folder.
-
-        :returns:
-            None
+        :return: None
+        :rtype: NoneType
         """
 
         if not isinstance(data_path, str):

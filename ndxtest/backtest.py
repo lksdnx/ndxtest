@@ -25,47 +25,21 @@ class Strategy:
     """Class to build strategies. Strategy objects are provided as a parameter to the `generate_signals` method of
     :class:`ndxtest.backtest.BackTest`.
 
-    Attributes
-    ----------
-    data: dict, default=None
-        A dictionary containing price data like so: {'AAPL': pd.Dataframe, 'AMNZ': pd.Dataframe, ...}
-    index: pd.Dataframe, default=None
-        A a pd.Dataframe containing price data of the reference index.
-    entry_long_conditions: list, default=[]
-    exit_long_conditions: list, default=[]
-    entry_short_conditions: list, default=[]
-    exit_short_conditions: list, default=[]
+    :ivar dict data: A dictionary containing price data provided by :class:`ndxtest.backtest.BackTest`. Initial value: None
+    :ivar pd.Dataframe index: A a pd.Dataframe containing price data of the reference index. Initial value: None
+    :ivar list entry_long_conditions: A list of conditions for entering long positions. Initial value: []
+    :ivar list exit_long_conditions: A list of conditions for exiting long positions. Initial value: []
+    :ivar list entry_short_conditions: A list of conditions for entering short positions. Initial value: []
+    :ivar list exit_short_conditions: A list of conditions for exiting short positions. Initial value: []
 
-    Methods
-    -------
-    add_entry_long_cond(day, condition, use_index=False):
-        Adding an entry condition for long positions.
-    add_exit_long_cond(day, condition, use_index=False):
-        Adding an exit condition for long positions.
-    add_entry_short_cond(day, condition, use_index=False):
-        Adding an entry condition for short positions.
-    add_exit_short_cond(day, condition, use_index=False):
-        Adding an entry condition for short positions.
-    generate_signals():
-        Searches in data for signals based on all entry and exit conditions provided to this strategy.
-
-    For information on how to use this class please refer to the documentation and the class method docstrings.
+    For information on how to use this class please refer to the user manual.
     """
 
     def __init__(self, data=None, index=None):
-        """Initializes an instance of the Strategy class.
+        """Constructor Method.
 
-        Parameters
-        ----------
-        data: Nonetype, default=None
-            When an instance of the Strategy class is passed to the `generate_signals` method of a BackTest instance,
-            data will be set to a dictionary containing price data like so: {'AAPL': pd.Dataframe, ...}.
-
-        index: Nonetype, default=None
-            When an instance of the Strategy class is passed to the `generate_signals` method of a BackTest instance,
-            index will be set to a pd.Dataframe containing price data for the reference index.
-
-        For information on how to use the Strategy class please refer to the documentation.
+        :param dict data: The is data provided when the strategy is provided to the `generate_signals` method of :class:`ndxtest.backtest.BackTest`. Initial value: None
+        :param pd.DataFrame index: Is provided when the strategy is provided to the `generate_signals` method of :class:`ndxtest.backtest.BackTest`. Initial value: None
         """
         self.data = data
         self.index = index
@@ -79,80 +53,56 @@ class Strategy:
     def add_entry_long_cond(self, day, condition, use_index=False):
         """Adding an entry condition for long positions.
 
-        Parameters
-        ----------
-             day: int
-                Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
-             condition: function(pd.Dataframe | pd.Series)
-                A function that takes a pd.Dataframe or pd.Series and checks for each row whether conditions
-                (defined by the function) are met or not. Returns a boolean pd.Series with the same index.
-             use_index: bool, default=True
-                If True, returns a boolean pd.Series based on the symbol df (e.g. 'AMZN').
-                If False, returns a boolean pd.Series based on the reference index df.
+        :param int day: Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
+        :param function condition: A function of x where x is a `pd.DataFrame` that returns a boolean `pd.Series` with the same index.
+        :param bool, default=False use_index: If True, is being applied to the symbol df, else to the reference index df.
 
-        For information on how conditions can be structured please refer to the documentation.
+        For information on how conditions can be structured please refer to the user manual.
+
+        :returns: None
+        :rtype: NoneType
         """
         self.entry_long_conditions.append((day, condition, use_index))
 
     def add_exit_long_cond(self, day, condition, use_index=False):
         """Adding an exit condition for long positions.
 
-        Parameters
-        ----------
-             day: int
-                Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
-             condition: function(pd.Dataframe | pd.Series)
-                A function that takes a pd.Dataframe or pd.Series and checks for each row whether conditions
-                (defined by the function) are met or not. Returns a boolean pd.Series with the same index.
-             use_index: bool, default=True
-                If True, returns a boolean pd.Series based on the symbol df (e.g. 'AMZN').
-                If False, returns a boolean pd.Series based on the reference index df.
+        :param int day: Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
+        :param function condition: A function of x where x is a `pd.DataFrame` that returns a boolean `pd.Series` with the same index.
+        :param bool, default=False use_index: If True, is being applied to the symbol df, else to the reference index df.
 
-        For information on how conditions can be structured please refer to the documentation.
+        For information on how conditions can be structured please refer to the user manual.
+
+        :returns: None
+        :rtype: NoneType
         """
         self.exit_long_conditions.append((day, condition, use_index))
 
     def add_entry_short_cond(self, day, condition, use_index=False):
         """Adding an entry condition for short positions.
 
-        Parameters
-        ----------
-        day: int
-            Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
-        condition: function(pd.Dataframe | pd.Series)
-            A function that takes a pd.Dataframe or pd.Series and checks for each row whether conditions
-            (defined by the function) are met or not. Returns a boolean pd.Series with the same index.
-        use_index: bool, default=True
-            If True, returns a boolean pd.Series based on the symbol df (e.g. 'AMZN').
-            If False, returns a boolean pd.Series based on the reference index df.
+        :param int day: Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
+        :param function condition: A function of x where x is a `pd.DataFrame` that returns a boolean `pd.Series` with the same index.
+        :param bool, default=False use_index: If True, is being applied to the symbol df, else to the reference index df.
 
-        Returns
-        -------
-        None
+        For information on how conditions can be structured please refer to the user manual.
 
-        For information on how conditions can be structured please refer to the documentation.
+        :returns: None
+        :rtype: NoneType
         """
         self.entry_short_conditions.append((day, condition, use_index))
 
     def add_exit_short_cond(self, day, condition, use_index=False):
         """Adding an exit condition for short positions.
 
-        Parameters
-        ----------
-        day: int
-            Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
-        condition: function(pd.Dataframe | pd.Series)
-            A function that takes a pd.Dataframe or pd.Series and checks for each row whether conditions
-            (defined by the function) are met or not. Returns a boolean pd.Series with the same index.
-        use_index: bool, default=True
-            If True, returns a boolean pd.Series based on the symbol df (e.g. 'AMZN').
-            If False, returns a boolean pd.Series based on the reference index df.
+        :param int day: Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
+        :param function condition: A function of x where x is a `pd.DataFrame` that returns a boolean `pd.Series` with the same index.
+        :param bool, default=False use_index: If True, is being applied to the symbol df, else to the reference index df.
 
-        Returns
-        -------
-        None
+        For information on how conditions can be structured please refer to the user manual.
 
-        For information on how conditions can be structured please refer to the documentation.
+        :returns: None
+        :rtype: NoneType
         """
         self.exit_short_conditions.append((day, condition, use_index))
 
@@ -163,20 +113,10 @@ class Strategy:
         In the 'entry_signals' column: 0 = no signal (do nothing), 1 = enter long, -1 = enter short.
         In the 'exit_signals' column: 0 = no signal (do nothing), -1 = exit long, 1 = exit short.
 
-        Parameters
-        ----------
-        No Parameters.
+        :returns: The price data dict, with signals appended in the described columns.
+        :rtype: dict
 
-        Returns
-        -------
-        dict
-            A dictionary containing price data like so: {'AAPL': pd.Dataframe, 'AMNZ': pd.Dataframe, ...}, where each df
-            is annotated with a 'score', 'entry_signals' and 'exit_signals' column. The 'score' column currently
-            has no function (2022-07-25).
-            In the 'entry_signals' column: 0 = no signal (do nothing), 1 = enter long, -1 = enter short.
-            In the 'exit_signals' column: 0 = no signal (do nothing), -1 = exit long, 1 = exit short.
-
-        For additional information please refer to the documentation.
+        For additional information please refer to the user manual.
         """
 
         if self.data is None or self.index is None:

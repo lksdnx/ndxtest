@@ -1,17 +1,5 @@
-"""This is backtest.py, the main module of the ndxtest package containing :class:`ndxtest.backtest.BackTest`.
-
-Classes
--------
-Strategy
-    Class to build strategies. Strategy objects are provided as a parameter to the `generate_signals` method of
-    :class:`ndxtest.backtest.BackTest`.
-BackTest
-    :class:`ndxtest.backtest.BackTest` is where the bulk of the code of the ndxtest package is located.
-    It imports the data for a specific date range from data\\lib\\. It accepts a Strategy object that can be built
-    with :class:`ndxtest.backtest.Strategy`. It instantiates a portfolio from `ndxtest.utils.Portfolio` and runs
-    a backtest of the provided strategy. It can perform optimization of specific parameters provided within a strategy
-    (comment: parameter optimization not included in version 0.0.1) Finally, it produces reports in the form
-    of .xlsx and .pdf files.
+"""This is backtest.py, the main module of the ndxtest package containing :class:`ndxtest.backtest.BackTest` and
+:class:`ndxtest.backtest.Strategy`.
 """
 
 import os
@@ -30,9 +18,12 @@ import random
 import seaborn as sns
 from fpdf import FPDF
 
+_VERSION = "0.0.1"
+
 
 class Strategy:
-    """Class to build strategies that are given as a parameter to the `generate_signals` method of a BackTest instance.
+    """Class to build strategies. Strategy objects are provided as a parameter to the `generate_signals` method of
+    :class:`ndxtest.backtest.BackTest`.
 
     Attributes
     ----------
@@ -253,141 +244,58 @@ class Strategy:
 
 
 class BackTest:
-    """:class:`ndxtest.backtest.BackTest` run backtests of trading strategies on an index level. Please refer
+    """:class:`ndxtest.backtest.BackTest` runs backtests of trading strategies on an index level. Please refer
     to the user manual for examples how to use this class. The technical documentation focuses on listing
-    class attributes and methods.
+    instance variables and methods.
 
-    Default values refer to the values set during initialization.
+    Initial values refer to the values set upon initialization.
 
-    :param runtime_messages: If True, prints elapsed time for data import and other computations to the console.
-    :type runtime_messages: bool, defaults=True
-
-    :param data_path: The absolute path to the data folder.
-    :type data_path: str
-
-    :param data_path_symbols: List of all symbols for which .csv files were found in data\\lib.
-    :type data_path_symbols: list, default=[]
-
-    :param dtypes: Dictionary containing the dtypes to use for columns during import of data into pd.DataFrames.
-    :type dtypes: dict, default={...}
-
-    :param input_data: Dictionary containing the imported price data. {'AAPL': pd.DataFrame(...), ..., 'ZTS': pd.DataFrame(...)}
-    :type input_data: dict, default={}
-
-    :param data: Copy of `input_data` with computed trading signals added to the pd.DataFrames.
-    :type data: dict, default=None
-
-    :param input_index: Contains the price data of the reference index. As of now the S&P 500 (Ticker Symbol = '^GSPC')
-    :type input_index: pd.DataFrame, default=None
-
-    :param index: Copy of `index` with computed indicators (needed for signal generation) added to the pd.DataFrame.
-    :type index: pd.DataFrame, default=None
-
-    :param t0: Used internally to store times needed for execution of computations.
-    :type t0: time.time object, default=None
-
-    :param tr: Used internally to store times needed for execution of computations.
-    :type tr: time.time object, default=None
-
-    :param runtime: Used internally to store times needed for execution of computations.
-    :type runtime: time.time object, default=None
-
-    :param sd: The start date of the backtest. If weekend or US market closed, the next trading day will be set as start date.
-    :type sd: datetime.datetime object or str, default=None
-
-    :param ed: The end date of the backtest. If weekend or US market closed, the next trading day will be set as end date.
-    :type ed: datetime.datetime object or str, default=None
-
-    :param duration: The duration of the backtest.
-    :type duration: datetime.timedelta object, default=None
-
-    :param dr: The range of dates between start and end date of the backtest.
-    :type dr: pd.DateRange, default=None
-
-    :param edr: Extended range of dates between start and end date to account for additional data needed for calulating lagging indicators.
-    :type edr: pd.DateRange, default=None
-
-    :param date_range_messages: If True, prints some extra information regarding missing price data for the backtest period to the console.
-    :type date_range_messages: bool, default=False
-
-    :param trading_days: A list of all trading days between start and end date. (Intersection of dr and input_index.index)
-    :type trading_days: list, default=None
-
-    :param constituents: A nested dictionary containing date ranges of index inclusion for all symbols. See `ndxtest.utils.constituents`.
-    :type constituents: dict, default=None
-
-    :param existing_symbols: A list of all symbols included in the index during the specified time period and exist in data\\lib.
-    :type existing_symbols: list, default=None
-
-    :param missing_symbols: A list of all symbols included in the index during the specified time period and *do not* exist in data\\lib.
-    :type missing_symbols: list, default=None
-
-    :param commission: Commission that is paid upon entering/exiting positions (e.g. 0.01 would be 1%)
-    :type commission: float, default=None
-
-    :param max_positions: Maximum number of positions (slots). No positions are entered when all slots are filled.
-    :type max_positions: int, default=None
-
-    :param initial_equity: The initial capital to start with.
-    :type initial_equity: float, default=None
-
-    :ivar max_trade_duration: A maximum number of days before positions will be closed. Will close positions independent of any signals provided by the strategy.
-    :type max_trade_duration: int, default=None
-
-    :param stoploss: The maximum % (e.g. 0.05) of adverse price movement before positions will be closed. Will close positions independent of any signals provided by the strategy.
-    :type stoploss: float, default=None
-
-    :param entry_mode: The mode of entry. 'open' = buy the open on the day after signal completion. As of now (Version 0.0.1), this is the only mode implemented.
-    :type entry_mode: str, default=None
-
-    :param signals: A dictionary containing the computed signals for the symbols with the respective trading days as keys.
-    :type signals: defaultdict(list), default=defaultdict(list)
-
-    :param eqc: Gets filled with daily ohlc data for the portfolio while the backtest runs. Used to generate the equity curve.
-    :type eqc: dict, default={}
-
-    :param eqc_df: A pd.DataFrame generated from `eqc` is stored in this attribute.
-    :type eqc_df: pd.DataFrame, default=pd.DataFrame
-
-    :param results: Gets filled with some high-level results (e.g. the winrate) of the backtest. Used to generate reports.
-    :type results: dict, default={}
-
-    :param drawdown: Gets filled with data used to calculate the (yearly) maximum drawdown.
-    :type drawdown: dict, default={}
-
-    :param exposure: Gets filled with info on the regarding the current exposure to the market.
-    :type exposure: dict, default={}
-
-    :param correlations: Is currently not used (Version 0.0.1).
-    :type correlations: dict, default={}
-
-    :param log_df: Is keeping a log of trades. Used to generate reports.
-    :type log_df: pd.DataFrame, default=pd.DataFrame
-
-    :param opt: Currently not used, optimization not implemented (Version: 0.0.1).
-    :type opt: bool, default=False
-
-    :param optimization_results: Currently not used, optimization not implemented (Version: 0.0.1).
-    :type optimization_results: pd.Series, default=None
-
-    :param best_parameters: Currently not used, optimization not implemented (Version: 0.0.1).
-    :type best_parameters: dict, default=None
-
-    :param parameters: Currently not used, optimization not implemented (Version: 0.0.1).
-    :type parameters: default={}
-
-    :param parameter_permutations: Currently not used, optimization not implemented (Version: 0.0.1).
-    :type parameter_permutations: list, default=[]
+    :ivar bool runtime_messages: If True, prints times needed for computations to the console. Initial value: True
+    :ivar str data_path: Absolute path to the data folder. Initial value: user input (__init__)
+    :ivar list data_path_symbols: List of all symbols found in data\\lib. Initial value: []
+    :ivar dict input_data: Dict containing the price data with ticker symbols as keys. Initial value: {}
+    :ivar dict data: Copy of `input_data` with trading signals added to price data. Initial value: None
+    :ivar pd.DataFrame input_index: Contains the price data of the reference index. Initial value: None
+    :ivar pd.DataFrame index: Copy of `index` with computed indicators for signal generation. Initial value: None
+    :ivar time.time t0: Stores times needed for computation. Initial value: None
+    :ivar time.time tr: Stores times needed for computation. Initial value: None
+    :ivar time.time runtime: Stores times needed for computation. Initial value: None
+    :ivar datetime.datetime sd: The start date of the backtest. Initial value: None
+    :ivar datetime.datetime ed: The end date of the backtest. Initial value: None
+    :ivar datetime.timedelta duration: The duration of the backtest. Initial value: None
+    :ivar pd.DateRange dr: The range of dates between start and end date. Initial value: None
+    :ivar pd.DateRange edr: Extended `dr` with additional data needed for calculating lagging indicators. Initial value: None
+    :ivar bool dr_messages: If True, prints information on missing price data for `dr` and/or `edr` to the console. Initial value: None
+    :ivar list trading_days: A list of all trading days between start and end date. Initial value: None
+    :ivar dict constituents: A nested dict containing symbol specific dr's and edr's. See `ndxtest.utils.constituents`. Initial value: None
+    :ivar list existing_symbols: All symbols included in the index during `dr` that exist in data\\lib. Initial value: None
+    :ivar list missing_symbols: All symbols included in the index during `dr` that *do not* exist in data\\lib. Initial value: None
+    :ivar float commission: Commission that is paid upon entering/exiting positions. Initial value: None
+    :ivar int max_positions: Maximum number of positions (slots) in the portfolio. Initial value: None
+    :ivar float initial_equity: The initial capital to start with. Initial value: None
+    :ivar int max_trade_duration: Maximum number of days before positions will be closed. Will close positions independent of any signals provided by the strategy. Initial value: None
+    :ivar float stoploss: The maximum % (e.g. 0.05) of adverse price movement before positions will be closed. Will close positions independent of any signals provided by the strategy. Initial value: None
+    :ivar str entry_mode: The mode of entry. 'open' = buy the open on the day after signal completion. As of now (Version 0.0.1), this is the only mode implemented. Initial value: None
+    :ivar defaultdict(list) signals: Contains the computed signals with the respective trading days as keys. Initial value: defaultdict(list)
+    :ivar dict eqc: Gets filled with ohlc data for the portfolio while the backtest runs. Initial value: {}
+    :ivar pd.DataFrame eqc_df: A pd.DataFrame generated from `eqc`. Initial value: pd.DataFrame
+    :ivar dict results: Gets filled with some high-level results (e.g. the winrate) of the backtest. Used to generate reports. Initial value: {}
+    :ivar dict drawdown: Gets filled with data used to calculate the (yearly) maximum drawdown. Initial value: {}
+    :ivar dict exposure: Gets filled with info on the regarding the current exposure to the market. Initial value: {}
+    :ivar dict correlations: Is currently not used (Version 0.0.1). Initial value: {}
+    :ivar pd.DataFrame log_df: Is keeping a log of trades. Used to generate reports. Initial value: pd.DataFrame
+    :ivar bool opt: Currently not used, optimization not implemented (Version: 0.0.1).
+    :ivar pd.Series optimization_results: Currently not used, optimization not implemented (Version: 0.0.1).
+    :ivar dict best_parameters: Currently not used, optimization not implemented (Version: 0.0.1).
+    :ivar dict parameters: Currently not used, optimization not implemented (Version: 0.0.1).
+    :ivar list parameter_permutations: Currently not used, optimization not implemented (Version: 0.0.1).
     """
 
     def __init__(self, data_path, runtime_messages=True):
-        """Constructor Method. Defines class attributes and connects the instance to the data folder. Fails if data folder not present.
+        """Constructor Method. Connects the instance to the data folder. Fails if data folder not present.
 
-        :param data_path: The data_path has to represent the absolute location of the `data` folder.
+        :param data_path: Has to represent the absolute location of the `data` folder.
         :type data_path: str
-
-        :return: None
-        :rtype: NoneType
         """
 
         if not isinstance(data_path, str):
@@ -420,14 +328,6 @@ class BackTest:
         self.data_path = data_path + 'data\\'
         self.output_path = data_path + 'output\\'
         self.data_path_symbols = [symbol[:-4] for symbol in os.listdir(self.data_path + 'lib\\') if '^' not in symbol]
-        self.dtypes = {'symbol': str,
-                       'open': np.float32,
-                       'high': np.float32,
-                       'low': np.float32,
-                       'close': np.float32,
-                       # 'volume': np.int64,
-                       'dividends': np.float32,
-                       'stock_splits': np.float32}
 
         self.input_data = {}
         self.data = None
@@ -443,7 +343,7 @@ class BackTest:
         self.duration = None
         self.dr = None
         self.edr = None
-        self.date_range_messages = None
+        self.dr_messages = None
         self.trading_days = None
 
         self.constituents = None
@@ -460,7 +360,7 @@ class BackTest:
         self.signals = defaultdict(list)
         self.alerts = None
         self.eqc = {}
-        self.eqc_df = pd.DataFrame()
+        self.eqc_df = None
         self.results = {}
         self.drawdown = {}
         self.exposure = {}
@@ -482,26 +382,27 @@ class BackTest:
             The end date of the backtest. If weekend or US market closed, the next trading day will be set as end date.
         :param datetime.timedelta or int lag:
             A timedelta that is added in front of the start_date. This is necessary for calculating indicators that
-            depend on previous price data such as moving averages among others.
+            depend on preceding price data such as moving averages among others.
         :param bool date_range_messages:
             If True, prints some extra information regarding missing price data for the backtest period to the console.
 
         :returns: None
+        :rtype: NoneType
         """
 
         if not isinstance(start_date, dt.datetime):
-            if not isinstance(lag, str):
+            if not isinstance(start_date, str):
                 raise TypeError("Parameter start_date must be of type datetime.datetime or str formatted 'YYYY-MM-DD'.")
             else:
-                self.sd = dt.datetime.strptime(date_string=start_date, format='%Y-%m-%d')
+                self.sd = dt.datetime.strptime(start_date, '%Y-%m-%d')
         else:
             self.sd = start_date
 
         if not isinstance(end_date, dt.datetime):
-            if not isinstance(lag, str):
+            if not isinstance(end_date, str):
                 raise TypeError("Parameter start_date must be of type datetime.datetime or str formatted 'YYYY-MM-DD'.")
             else:
-                self.ed = dt.datetime.strptime(date_string=start_date, format='%Y-%m-%d')
+                self.ed = dt.datetime.strptime(end_date, '%Y-%m-%d')
         else:
             self.sd = end_date
 
@@ -515,9 +416,17 @@ class BackTest:
         self.duration = self.ed - self.sd
         self.dr = pd.date_range(self.sd, self.ed)
         self.edr = pd.date_range(self.sd - lag, self.ed)
-        self.date_range_messages = date_range_messages
+        self.dr_messages = date_range_messages
 
-        self.input_index = pd.read_csv(self.data_path + 'lib\\^GSPC.csv', engine='c', dtype=self.dtypes,
+        dtypes = {'symbol': str,
+                  'open': np.float32,
+                  'high': np.float32,
+                  'low': np.float32,
+                  'close': np.float32,
+                  # 'volume': np.int64,
+                  'dividends': np.float32,
+                  'stock_splits': np.float32}
+        self.input_index = pd.read_csv(self.data_path + 'lib\\^GSPC.csv', engine='c', dtype=dtypes,
                                        usecols=['date', 'symbol', 'open', 'high', 'low', 'close'],
                                        index_col='date', parse_dates=[0], dayfirst=True)
         self.input_index = self.input_index.loc[self.input_index.index.intersection(self.edr)]
@@ -544,13 +453,15 @@ class BackTest:
                 next(f)
                 first = next(f).split(',')[0]
                 first = dt.datetime.strptime(first, '%Y-%m-%d')
-                skip = ((start_date - first).days * 0.65).__floor__() - lag.days
 
-            df = pd.read_csv(file, engine='c', dtype=self.dtypes, skiprows=range(1, skip), index_col='date', parse_dates=['date'])
+                skip = ((self.sd - first).days * 0.65).__floor__() - lag.days
+
+            df = pd.read_csv(file, engine='c', dtype=dtypes, skiprows=range(1, skip), index_col='date',
+                             parse_dates=['date'])
             df = df.loc[df.index.intersection(edr)]
             df['symbol'] = symbol
 
-            if self.date_range_messages:
+            if self.dr_messages:
                 missing_records = df.index.symmetric_difference(edr.intersection(self.input_index.index))
                 if any(missing_records):
                     print(f'{symbol}: {len(missing_records)} missing records in extended date range.')
@@ -562,7 +473,14 @@ class BackTest:
             print(f'Data imported:                              ...{(time.time() - self.t0).__round__(2)} sec elapsed.')
 
     def generate_signals(self, strategy):
-        """Write proper docstring!"""
+        """Accepts an instance of the :class:`ndxtest.backtest.Strategy` class. Generates and oders the trading signals.
+
+        :param ndxtest.backtest.Strategy strategy:
+            A trading strategy built with the :class:`ndxtest.backtest.Strategy` class.
+
+        :returns: None
+        :rtype: NoneType
+        """
         t1, self.tr = time.time(), time.time()
 
         strategy.data = self.input_data.copy()
@@ -610,449 +528,16 @@ class BackTest:
         if self.runtime_messages:
             print(f'Signals ordered:                            ...{(time.time() - t1).__round__(2)} sec elapsed.')
 
-    def run_backtest(self, long_only=False, commission=.001, max_positions=10, initial_equity=10000.00,
-                     max_trade_duration=None, stoploss=None, eqc_method='approx'):
-        """Entry Signals: 1 = enter long position, -1 = enter short position,
-        Exit Signals: 1 = exit short position, -1 = exit long position, -2 = exit long or short position"""
-        self.commission = commission
-        self.max_positions = max_positions
-        self.initial_equity = initial_equity
-        self.max_trade_duration = max_trade_duration
-        self.stoploss = stoploss
-        self.exposure = {}
+    def eval_signals(self, signals, run_sampling=True):
+        """This function searches the imported data for a specific type of signals and creates a .xlsx report about the
+        immediate price action that is followed by the signals. It is helpful for evalutating the viability of the signals
+        generated by the strategy.
 
-        p = Portfolio(max_positions=max_positions, initial_equity=initial_equity, commission=commission)
-
-        t1 = time.time()
-        if self.runtime_messages:
-            print(f'Running core...')
-
-        for date in self.trading_days:
-            max_trade_duration_signals = []
-            stoploss_signals = []
-
-            if max_trade_duration is not None and p.positions:
-                current_positions = list(p.long_positions.values()) + list(p.short_positions.values())
-                max_trade_duration_violated = \
-                    list(filter(lambda position: position['entry_date'] <= date - dt.timedelta(days=max_trade_duration),
-                                current_positions))
-                max_trade_duration_signals = [{'symbol': position['symbol'], 'entry_signals': 0, 'exit_signals': -2,
-                                               'score': 0, 'open': self.data[position['symbol']].loc[date, 'open']}
-                                              for position in max_trade_duration_violated]
-
-            if stoploss is not None and p.positions:
-                long_positions, short_positions = list(p.long_positions.values()), list(p.short_positions.values())
-                long_stoploss_violated = list(filter(lambda position:
-                                                     position['entry_price'] * (1 - stoploss) >
-                                                     self.data[position['symbol']].loc[date, 'open'], long_positions))
-                short_stoploss_violated = list(filter(lambda position:
-                                                      position['entry_price'] * (1 + stoploss) <
-                                                      self.data[position['symbol']].loc[date, 'open'], short_positions))
-                stoploss_signals = [{'symbol': position['symbol'], 'entry_signals': 0, 'exit_signals': -2, 'score': 0,
-                                     'open': self.data[position['symbol']].loc[date, 'open']}
-                                    for position in long_stoploss_violated + short_stoploss_violated]
-
-            self.signals[date] += max_trade_duration_signals
-            self.signals[date] += stoploss_signals
-
-            if self.signals[date]:  # signals for this date must exist
-                for s in [s for s in self.signals[date] if s['symbol'] in p.positions()]:
-                    if s['exit_signals'] in {1, -2} and s['symbol'] in p.short_positions:
-                        p.long(data={'symbol': s['symbol'],
-                                     'exit_score': s['score'],
-                                     'exit_price': s['open'],
-                                     'exit_date': date})
-
-                    if s['exit_signals'] in {-1, -2} and s['symbol'] in p.long_positions:
-                        p.short(data={'symbol': s['symbol'],
-                                      'exit_score': s['score'],
-                                      'exit_price': s['open'],
-                                      'exit_date': date})
-
-                if date == self.trading_days[-1]:
-                    self.signals[date] = []
-                else:
-                    self.signals[date] = list(filter(lambda signal: signal['symbol'] not in p.positions(),
-                                                     self.signals[date]))
-
-                for s in self.signals[date]:
-                    if s['entry_signals'] == 1 and s['symbol'] and p.free_slot():
-                        s['nshares'] = p.calculate_nshares(s['open'])
-                        if s['nshares'] > 0:
-                            p.long(data={'symbol': s['symbol'],
-                                         'signal': s['entry_signals'],
-                                         'entry_score': s['score'],
-                                         'entry_price': s['open'],
-                                         'nshares': s['nshares'],
-                                         'entry_date': date})
-
-                    if not long_only and s['entry_signals'] == -1 and s['symbol'] and p.free_slot():
-                        s['nshares'] = -1 * p.calculate_nshares(s['open'])
-                        if s['nshares'] < 0:
-                            p.short(data={'symbol': s['symbol'],
-                                          'signal': s['entry_signals'],
-                                          'entry_score': s['score'],
-                                          'entry_price': s['open'],
-                                          'nshares': s['nshares'],
-                                          'entry_date': date})
-
-            # logging the "market exposure" statistic
-            self.exposure[date] = p.current_exposure()
-
-            if eqc_method == 'full':
-                op, hi, lo, cl, data = 0, 0, 0, 0, None
-                if p.positions:
-                    for symbol in p.positions():
-                        if symbol in p.long_positions.keys():
-                            nshares = p.long_positions[symbol]['nshares']
-                        else:
-                            nshares = p.short_positions[symbol]['nshares']
-                        long_positions = self.data[symbol].loc[date, ['open', 'high', 'low', 'close']]
-                        op += long_positions.open * nshares
-                        hi += long_positions.high * nshares
-                        lo += long_positions.low * nshares
-                        cl += long_positions.close * nshares
-                data = {'open': p.cash + p.restricted_cash() + op, 'high': p.cash + p.restricted_cash() + hi,
-                        'low': p.cash + p.restricted_cash() + lo, 'close': p.cash + p.restricted_cash() + cl}
-                self.eqc[date] = data
-
-        self.exposure = pd.DataFrame.from_dict(data=self.exposure, orient='index', dtype=np.int8)
-
-        self.log_df = p.create_log_df()
-        self.log_df.to_csv(self.output_path + 'tradelog.csv')
-        self.log_df = self.log_df.loc[self.log_df['exit_date'] != 0]
-
-        if eqc_method == 'full':
-            self.eqc_df = pd.DataFrame.from_dict(data=self.eqc, orient='index')
-            self.eqc_df['d%change'] = self.eqc_df.close.pct_change() * 100
-            self.eqc_df['c%change'] = (((self.eqc_df.close / initial_equity) - 1) * 100)
-            self.eqc_df = self.eqc_df.round(2)
-            self.eqc_df.to_csv(self.output_path + 'equity_curve.csv')
-
-        if eqc_method == 'approx':
-            x = self.log_df.drop_duplicates(subset=['exit_date'], keep='last')
-            x = x.set_index('exit_date')['market_value']
-            self.eqc_df = pd.DataFrame(data={'close': np.nan}, index=self.index.index)
-            self.eqc_df.loc[x.index, 'close'] = x
-            self.eqc_df.fillna(method="ffill", inplace=True)
-            self.eqc_df.fillna(self.initial_equity, inplace=True)
-            self.eqc_df['d%change'] = self.eqc_df.close.pct_change() * 100
-            self.eqc_df['c%change'] = (((self.eqc_df.close / initial_equity) - 1) * 100)
-            self.eqc_df = self.eqc_df.round(2)
-            self.eqc_df.to_csv(self.output_path + 'equity_curve.csv')
-
-        self.drawdown = pd.DataFrame(data={'roll_max': self.eqc_df.close.rolling(252, min_periods=1).max()},
-                                     index=self.eqc_df.index)
-        self.drawdown['daily'] = (self.eqc_df.close / self.drawdown.roll_max - 1) * 100
-        self.drawdown['daily_max'] = self.drawdown.daily.rolling(252, min_periods=1).min()
-        self.drawdown = self.drawdown.round(2)
-
-        self.results = {'n_trades': p.number_of_trades,
-                        'max_drawdown': self.drawdown.daily_max.min(),
-                        'median%pnl': self.log_df['%change'].median().__round__(2),
-                        'min%pnl': self.log_df['%change'].min(),
-                        'max%pnl': self.log_df['%change'].max(),
-                        'median_dur': self.log_df.duration.median(),
-                        'min_dur': self.log_df.duration.min(),
-                        'max_dur': self.log_df.duration.max(),
-                        '%profitable': (np.count_nonzero(self.log_df.profitable != 0) / len(
-                            self.log_df.profitable) * 100).__round__(2),
-                        'commission_paid': p.commission_paid.__round__(2),
-                        'perf': self.eqc_df['c%change'][-1],
-                        'ann_perf': (((1 + ((self.eqc_df.close[-1] - initial_equity) / initial_equity))
-                                      ** (1 / (self.duration.days / 365.25)) - 1) * 100).__round__(2),
-                        'bm_perf': self.index['c%change'][-1],
-                        'bm_ann_perf': (((1 + (
-                                (self.index.close[-1] - self.index.close[0]) / self.index.close[0]))
-                                         ** (1 / (self.duration.days / 365.25)) - 1) * 100).__round__(2)}
-
-        if self.runtime_messages:
-            print(f'Finished:                                   ...{(time.time() - t1).__round__(2)} sec elapsed.')
-            print(
-                f'Time per trading day:                       ...{((time.time() - t1) / len(self.trading_days) * 1000).__round__(2)} ms.')
-
-        self.runtime = (time.time() - self.tr).__round__(2)
-        if self.runtime_messages:
-            print(f'Total runtime ex. data import:              ...{self.runtime} sec.')
-
-    def optimize_strategy(self, strategy, parameters, run_best=True):
-
-        def frange(x, y, jump):
-            while x <= y:
-                yield float(x)
-                x += decimal.Decimal(jump)
-
-        self.parameters = parameters
-
-        for k in self.parameters.keys():
-            if not parameters[k]:
-                continue
-            if any(isinstance(v, float) for v in parameters[k]):
-                lo, hi, step = tuple(decimal.Decimal(str(x)) for x in parameters[k])
-                self.parameters[k] = [p for p in frange(lo, hi, step)]
-            else:
-                lo, hi, step = parameters[k]
-                self.parameters[k] = [p for p in range(lo, hi + step, step)]
-
-        print(self.parameters)
-
-        permutations = [element for element in itertools.product(*self.parameters.values())]
-        self.parameter_permutations = [{k: v for (k, v) in zip(self.parameters.keys(), comb)} for comb in permutations]
-
-        print(f'There are {len(self.parameter_permutations)} parameter combinations to run.')
-        print(
-            f'Running the optimization will approximately take {(len(self.parameter_permutations) * self.runtime * 1.2).__round__(2)} seconds.')
-        if input(f'Proceed (Y/N): ').upper() == 'Y':
-            self.runtime_messages = False
-            s = []
-            d = pd.DataFrame(columns=list(self.parameters.keys()))
-            for parameters in self.parameter_permutations:
-                self.generate_signals(strategy, parameters)
-                self.run_backtest(long_only=True,
-                                  commission=self.commission,
-                                  max_positions=self.max_positions,
-                                  initial_equity=self.initial_equity,
-                                  max_trade_duration=self.max_trade_duration,
-                                  stoploss=self.stoploss,
-                                  eqc_method='approx')
-
-                print(f'{parameters} --> {self.results["perf"]}')
-
-                s.append(self.results['perf'])
-                d = d.append(parameters, ignore_index=True)
-
-            self.optimization_results = pd.Series(data=s, index=pd.MultiIndex.from_frame(d), name='performance')
-            self.optimization_results.to_csv('output\\optimization_results.csv')
-
-            combs = list(itertools.combinations(list(self.parameters.keys()), 2))
-
-            fig3, axs3 = plt.subplots(1, len(combs), figsize=(9, 9 / len(combs)), gridspec_kw={"wspace": .5})
-            for i, combination in enumerate(combs):
-                hm = self.optimization_results.groupby(list(combination)).mean().unstack()
-                sns.heatmap(hm[::], annot=True, ax=axs3 if len(combs) == 1 else axs3[i], cmap='viridis')
-                mp = [p for p in list(self.parameters.keys()) if p not in combination]
-                axs3.title.set_text(f'Performance') if len(combs) == 1 else axs3[i].title.set_text(
-                    f'Mean of all {mp} runs.')
-
-            plt.savefig("f3.png", dpi=None, facecolor='w', edgecolor='w')
-
-            self.best_parameters = {f'p{i + 1}': val for i, val in enumerate(self.optimization_results.idxmax())}
-            self.opt = True
-
-            if run_best:
-                self.generate_signals(strategy, self.best_parameters)
-                self.run_backtest(long_only=True,
-                                  commission=self.commission,
-                                  max_positions=self.max_positions,
-                                  initial_equity=self.initial_equity,
-                                  max_trade_duration=self.max_trade_duration,
-                                  stoploss=self.stoploss,
-                                  eqc_method='full')
-
-    def report(self):
-
-        fig1, axs1 = plt.subplots(3, 1, figsize=(9, 6))
-        axs1[0].plot(self.index['c%change'].index, self.index['c%change'], color='blue', label='Benchmark')
-        axs1[0].plot(self.eqc_df['c%change'].index, self.eqc_df['c%change'], color='black',
-                     label='Backtest')
-        axs1[0].set_xticks([])
-        axs1[0].set_xticklabels([])
-        axs1[0].set_ylabel('Cumulative % Change')
-        axs1[0].grid(axis='y')
-        axs1[0].legend()
-        axs1[1].plot(self.drawdown['daily'].index, self.drawdown['daily'], color='black', label='Drawdown')
-        axs1[1].plot(self.drawdown['daily_max'].index, self.drawdown['daily_max'], color='red',
-                     label='Max. 1Yr Drawdown')
-        axs1[1].set_xticks([])
-        axs1[1].set_xticklabels([])
-        axs1[1].set_ylabel('1Yr Drawdown')
-        axs1[1].grid(axis='y')
-        axs1[1].legend()
-        axs1[2].plot(self.exposure['n_long'].index, self.exposure['n_long'], color='blue', label='Long Positions')
-        axs1[2].plot(self.exposure['n_short'].index, self.exposure['n_short'], color='red', label='Short Positions')
-        axs1[2].plot(self.exposure['n_free'].index, self.exposure['n_free'], color='grey', label='Free Slots')
-        axs1[2].set_xlabel('Date')
-        axs1[2].set_ylabel('Positions')
-        axs1[2].grid(axis='y')
-        axs1[2].legend()
-        fig1.tight_layout()
-
-        plt.savefig(self.output_path + "f1.png", dpi=None, facecolor='w', edgecolor='w')
-
-        fig2, axs2 = plt.subplots(1, 3, figsize=(9, 3), gridspec_kw={"wspace": .5})
-        main_corr = self.log_df[['entry_score', 'duration', 'entry_price', 'profitable']]
-        self.correlations['main_corr'] = pd.DataFrame(data=main_corr.corr()['profitable'],
-                                                      index=['entry_score', 'duration', 'entry_price', 'profitable'])
-        axs2[0].title.set_text('General Correlations')
-        sns.heatmap(self.correlations['main_corr'], annot=True, square=False, ax=axs2[0], cmap='viridis')
-
-        entry_corr = pd.DataFrame()
-        entry_corr['mon'] = self.log_df['entry_weekday'] == 1
-        entry_corr['tue'] = self.log_df['entry_weekday'] == 2
-        entry_corr['wed'] = self.log_df['entry_weekday'] == 3
-        entry_corr['thu'] = self.log_df['entry_weekday'] == 4
-        entry_corr['fri'] = self.log_df['entry_weekday'] == 5
-        entry_corr['profitable'] = self.log_df['profitable']
-        self.correlations['entry_corr'] = pd.DataFrame(data=entry_corr.corr()['profitable'],
-                                                       index=['mon', 'tue', 'wed', 'thu', 'fri', 'profitable'])
-        axs2[1].title.set_text('Entry Weekday Correlations')
-        sns.heatmap(self.correlations['entry_corr'], annot=True, square=False, ax=axs2[1], cmap='viridis')
-
-        exit_corr = pd.DataFrame()
-        exit_corr['mon'] = self.log_df['exit_weekday'] == 1
-        exit_corr['tue'] = self.log_df['exit_weekday'] == 2
-        exit_corr['wed'] = self.log_df['exit_weekday'] == 3
-        exit_corr['thu'] = self.log_df['exit_weekday'] == 4
-        exit_corr['fri'] = self.log_df['exit_weekday'] == 5
-        exit_corr['profitable'] = self.log_df['profitable']
-        self.correlations['exit_corr'] = pd.DataFrame(data=exit_corr.corr()['profitable'],
-                                                      index=['mon', 'tue', 'wed', 'thu', 'fri', 'profitable'])
-        axs2[2].title.set_text('Exit Weekday Correlations')
-        sns.heatmap(self.correlations['exit_corr'], annot=True, square=False, ax=axs2[2], cmap='viridis')
-
-        plt.savefig(self.output_path + "f2.png", dpi=None, facecolor='w', edgecolor='w')
-
-        class PDF(FPDF):  # A4: w = 210, h = 297
-            pass
-
-        pdf = PDF()
-        pdf.set_left_margin(margin=30)
-        pdf.add_page()
-        pdf.set_font('helvetica', size=12)
-
-        pdf.cell(w=80, align='', txt=f'BackTest Report:', ln=0)
-        pdf.cell(w=80, align='', txt=f'{dt.datetime.now().date()}', ln=1)
-        pdf.cell(w=80, align='', txt=f'Benchmark Index:', ln=0)
-        pdf.cell(w=80, align='', txt=f'SPY', ln=1)
-
-        pdf.ln(140)
-        pdf.image(self.output_path + 'f1.png', x=15, y=25, w=180, h=120)
-
-        pdf.cell(w=80, align='', txt=f'Parameters:', ln=0)
-        pdf.cell(w=80, align='', txt=f'{self.best_parameters if self.opt else "not optimized"}', ln=1)
-        pdf.cell(w=80, align='', txt=f'Start date:', ln=0)
-        pdf.cell(w=80, align='', txt=f'{self.sd.date()}', ln=1)
-        pdf.cell(w=80, align='', txt=f'End date:', ln=0)
-        pdf.cell(w=80, align='', txt=f'{self.ed.date()}', ln=1)
-        pdf.cell(w=80, align='', txt=f"Initial Equity [$]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.initial_equity}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Final Equity [$]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.eqc_df.close[-1]}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Max. Drawdown [%]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['max_drawdown']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Performance Strategy [%]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['perf']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Performance Benchmark [%]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['bm_perf']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Ann. Performance Strategy [%]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['ann_perf']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Ann. Performance Benchmark [%]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['bm_ann_perf']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Total commissions paid [$]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['commission_paid']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Number of trades executed:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['n_trades']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Median trade duration [Days]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['median_dur']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Worst trade [%]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['min%pnl']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Best trade [%]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['max%pnl']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Median trade [%]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['median%pnl']}", ln=1)
-        pdf.cell(w=80, align='', txt=f"Profitable trades [%]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['%profitable']}", ln=1)
-
-        pdf.add_page()
-        # pdf.ln(10)
-        # pdf.cell(w=190, align='C', txt=f"Correlations with profitability of trades:")
-        # pdf.image('output\\f2.png', x=15, y=20, w=180, h=60)
-        if self.opt:
-            pdf.cell(w=190, align='', txt=f"Optimization:")
-            shape = img.imread(self.output_path + 'f3.png').shape
-            pdf.image(self.output_path + 'f3.png', x=10, y=20, w=shape[0] * (160 / shape[0]),
-                      h=shape[1] * (160 / shape[1]))
-
-        pdf.output(self.output_path + 'test.pdf', 'F')
-
-        os.remove(self.output_path + 'f1.png')
-        os.remove(self.output_path + 'f2.png')
-        if self.opt:
-            os.remove(self.output_path + 'f3.png')
-
-    def plot_ticker(self, symbol):
-        """This function will plot."""
-
-        df = self.data[symbol]
-
-        long_entries = df['entry_signals'].replace([0, -1], np.nan)
-        long_exits = df['exit_signals'].replace([0, 1], np.nan)
-        short_entries = df['entry_signals'].replace([0, 1], np.nan)
-        short_exits = df['exit_signals'].replace([0, -1], np.nan)
-
-        long_entries = mpf.make_addplot(long_entries, color='green', panel=2, ylim=(-3, 3), secondary_y=False,
-                                        type="scatter", markersize=20, marker='^', ylabel='Long Signals')
-        long_exits = mpf.make_addplot(long_exits, color='red', panel=2, ylim=(-3, 3), secondary_y=False,
-                                      type="scatter", markersize=20, marker='v')
-        short_entries = mpf.make_addplot(short_entries, color='green', panel=3, ylim=(-3, 3), secondary_y=False,
-                                         type="scatter", markersize=20, marker='^', ylabel='Short Signals')
-        short_exits = mpf.make_addplot(short_exits, color='red', panel=3, ylim=(-3, 3), secondary_y=False,
-                                       type="scatter", markersize=20, marker='v')
-
-        addplts = [long_entries, long_exits, short_entries, short_exits]
-
-        mpf.plot(self.data[symbol], type="candle", style='blueskies', xrotation=45, volume=True,
-                 addplot=addplts, panel_ratios=(1, 0.5, 0.5, 0.5), warn_too_much_data=10000)
-
-    def query_missing_records(self, date):
-        """(for debugging) Queries, whether any symbols lack price data for a specific date.
-
-        Parameters
-        ----------
-        date: datetime.datetime object or str
-            If string it must be 'YYYY-MM-DD' formatted.
-
-        Returns
-        -------
-        None. It prints the results in the console.
+        :param ndxtest.backtest.Strategy.IVAR signals: IVAR can be entry_long_conditions, exit_long_conditions, entry_short_conditions or exit_short_conditions.
+        :param bool, default=True run_sampling: If True, will generate a large number of hypothetical trades based on the signal stats.
         """
 
-        if not isinstance(date, dt.datetime):
-            if isinstance(date, str):
-                date = dt.datetime.strptime(date, '%Y-%m-%d')
-            else:
-                raise TypeError("Please provide a 'YYYY-MM-DD' formatted string or a datetime.datetime object.")
-
-        if date.isoweekday() in {6, 7}:
-            raise ValueError(f'{date} is not a weekday. Call function with weekdays only.')
-
-        if date < self.sd:
-            print(f'Warning: {date} is not within the backtest period. The record might be available but not imported.')
-
-        for k, v in self.input_data.items():
-            if date not in v.index:
-                if date in self.constituents[k]['dr']:
-                    print(f'Data for {k} is missing the record for {date}.')
-
-    def setup_search(self, pattern, run_sampling=True):
-        """This function searches the input_data for certain patterns that represent buy or sell signals.
-        The pattern parameter is a list of conditions that have to be met in order to generate a signal in the
-        following general format:
-        [(-n, cond, False), ..., (-1, cond, False), (0, cond, False), (1, cond, True)]
-        Wherein: 0 represents the day of signal completion, 1 represents the day of signal execution
-        (buy/sell transaction), -1 represents one time period (day) prior to the signal completion and so on.
-        cond represent conditions that have to be met. 'False' means that the condition has to be met in the
-        respective ticker symbol. 'True' means that the condition has to be met in the ^GSPC (S&P 500) index.
-        As an example, the pattern:
-        [(-1, bullish_pin_bar(), False), (0, gap_up(), False), (1, gap_up(), True)]
-        Translates into: On day -1 a bullish pin bar has to form. On the day of signal completion the ticker symbol
-        has to gap up. On the day of transaction the index has to gap up. all(pattern) has to be True otherwise a
-        transaction is not triggered.
-        Patterns should (but don't have to) be provided in chronological order. One day can have several conditions
-        (separate tuple for each condition)
-        """
-
-        if isinstance(pattern, list):
+        if isinstance(signals, list):
 
             results, random_results = {}, {}
 
@@ -1061,7 +546,7 @@ class BackTest:
 
                 signals = pd.DataFrame()
 
-                for i, element in enumerate(pattern):
+                for i, element in enumerate(signals):
                     delta_days, func, index = element  # how will funcs with arguments be handled?
                     if not index:
                         # task find more elegant way of column naming?
@@ -1250,3 +735,463 @@ class BackTest:
                     rnd.to_excel(writer, sheet_name='random', index=False)
                     pd.DataFrame(data=stats).to_excel(writer, sheet_name='stats_pattern_vs_random', index=False)
                     pd.DataFrame(data=sampling).to_excel(writer, sheet_name='sampling_results', index=False)
+
+    def run_backtest(self, long_only=False, commission=.001, max_positions=10, initial_equity=10000.00,
+                     max_trade_duration=None, stoploss=None, detailed_eqc=True):
+        """Executes the backtest and creates several logs in the meantime.
+
+        :param bool, default=False long_only:
+            If True, only long entry and exit signals are considered.
+        :param float, default=.001 commission:
+            Commission that is paid upon entering/exiting positions.
+        :param int, default=10 max_positions:
+            Maximum number of positions (slots) in the portfolio.
+        :param float, deault=10000.00 initial_equity:
+            The initial capital to start with.
+        :param int, default=None max_trade_duration:
+            Maximum number of days before positions will be closed. Will close positions independent of any signals provided by the strategy.
+        :param float, deaulft=None stoploss:
+            The maximum % (e.g. 0.05) of adverse price movement before positions will be closed. Will close positions indepent of signals provided by the strategy.
+        :param bool, default=True detailed_eqc:
+            If True, calculates the ohlc market value of the portfolio daily during the backtest period. Significantly increases time for computation of backtest. Set this to false for quick testing.
+
+        :returns: None
+        :rtype: None
+        """
+
+        self.commission = commission
+        self.max_positions = max_positions
+        self.initial_equity = initial_equity
+        self.max_trade_duration = max_trade_duration
+        self.stoploss = stoploss
+        self.exposure = {}
+
+        p = Portfolio(max_positions=max_positions, initial_equity=initial_equity, commission=commission)
+
+        t1 = time.time()
+        if self.runtime_messages:
+            print(f'Running core...')
+
+        for date in self.trading_days:
+            max_trade_duration_signals = []
+            stoploss_signals = []
+
+            if max_trade_duration is not None and p.positions:
+                current_positions = list(p.long_positions.values()) + list(p.short_positions.values())
+                max_trade_duration_violated = \
+                    list(filter(lambda position: position['entry_date'] <= date - dt.timedelta(days=max_trade_duration),
+                                current_positions))
+                max_trade_duration_signals = [{'symbol': position['symbol'], 'entry_signals': 0, 'exit_signals': -2,
+                                               'score': 0, 'open': self.data[position['symbol']].loc[date, 'open']}
+                                              for position in max_trade_duration_violated]
+
+            if stoploss is not None and p.positions:
+                long_positions, short_positions = list(p.long_positions.values()), list(p.short_positions.values())
+                long_stoploss_violated = list(filter(lambda position:
+                                                     position['entry_price'] * (1 - stoploss) >
+                                                     self.data[position['symbol']].loc[date, 'open'], long_positions))
+                short_stoploss_violated = list(filter(lambda position:
+                                                      position['entry_price'] * (1 + stoploss) <
+                                                      self.data[position['symbol']].loc[date, 'open'], short_positions))
+                stoploss_signals = [{'symbol': position['symbol'], 'entry_signals': 0, 'exit_signals': -2, 'score': 0,
+                                     'open': self.data[position['symbol']].loc[date, 'open']}
+                                    for position in long_stoploss_violated + short_stoploss_violated]
+
+            self.signals[date] += max_trade_duration_signals
+            self.signals[date] += stoploss_signals
+
+            if self.signals[date]:  # signals for this date must exist
+                for s in [s for s in self.signals[date] if s['symbol'] in p.positions()]:
+                    if s['exit_signals'] in {1, -2} and s['symbol'] in p.short_positions:
+                        p.long(data={'symbol': s['symbol'],
+                                     'exit_score': s['score'],
+                                     'exit_price': s['open'],
+                                     'exit_date': date})
+
+                    if s['exit_signals'] in {-1, -2} and s['symbol'] in p.long_positions:
+                        p.short(data={'symbol': s['symbol'],
+                                      'exit_score': s['score'],
+                                      'exit_price': s['open'],
+                                      'exit_date': date})
+
+                if date == self.trading_days[-1]:
+                    self.signals[date] = []
+                else:
+                    self.signals[date] = list(filter(lambda signal: signal['symbol'] not in p.positions(),
+                                                     self.signals[date]))
+
+                for s in self.signals[date]:
+                    if s['entry_signals'] == 1 and s['symbol'] and p.free_slot():
+                        s['nshares'] = p.calculate_nshares(s['open'])
+                        if s['nshares'] > 0:
+                            p.long(data={'symbol': s['symbol'],
+                                         'signal': s['entry_signals'],
+                                         'entry_score': s['score'],
+                                         'entry_price': s['open'],
+                                         'nshares': s['nshares'],
+                                         'entry_date': date})
+
+                    if not long_only and s['entry_signals'] == -1 and s['symbol'] and p.free_slot():
+                        s['nshares'] = -1 * p.calculate_nshares(s['open'])
+                        if s['nshares'] < 0:
+                            p.short(data={'symbol': s['symbol'],
+                                          'signal': s['entry_signals'],
+                                          'entry_score': s['score'],
+                                          'entry_price': s['open'],
+                                          'nshares': s['nshares'],
+                                          'entry_date': date})
+
+            # logging the "market exposure" statistic
+            self.exposure[date] = p.current_exposure()
+
+            if detailed_eqc:
+                op, hi, lo, cl, data = 0, 0, 0, 0, None
+                if p.positions:
+                    for symbol in p.positions():
+                        if symbol in p.long_positions.keys():
+                            nshares = p.long_positions[symbol]['nshares']
+                        else:
+                            nshares = p.short_positions[symbol]['nshares']
+                        long_positions = self.data[symbol].loc[date, ['open', 'high', 'low', 'close']]
+                        op += long_positions.open * nshares
+                        hi += long_positions.high * nshares
+                        lo += long_positions.low * nshares
+                        cl += long_positions.close * nshares
+                data = {'open': p.cash + p.restricted_cash() + op, 'high': p.cash + p.restricted_cash() + hi,
+                        'low': p.cash + p.restricted_cash() + lo, 'close': p.cash + p.restricted_cash() + cl}
+                self.eqc[date] = data
+
+        self.exposure = pd.DataFrame.from_dict(data=self.exposure, orient='index', dtype=np.int8)
+
+        self.log_df = p.create_log_df()
+        self.log_df.to_csv(self.output_path + 'tradelog.csv')
+        self.log_df = self.log_df.loc[self.log_df['exit_date'] != 0]
+
+        if detailed_eqc:
+            self.eqc_df = pd.DataFrame.from_dict(data=self.eqc, orient='index')
+            self.eqc_df['d%change'] = self.eqc_df.close.pct_change() * 100
+            self.eqc_df['c%change'] = (((self.eqc_df.close / initial_equity) - 1) * 100)
+            self.eqc_df = self.eqc_df.round(2)
+            self.eqc_df.to_csv(self.output_path + 'equity_curve.csv')
+        else:
+            x = self.log_df.drop_duplicates(subset=['exit_date'], keep='last')
+            x = x.set_index('exit_date')['market_value']
+            self.eqc_df = pd.DataFrame(data={'close': np.nan}, index=self.index.index)
+            self.eqc_df.loc[x.index, 'close'] = x
+            self.eqc_df.fillna(method="ffill", inplace=True)
+            self.eqc_df.fillna(self.initial_equity, inplace=True)
+            self.eqc_df['d%change'] = self.eqc_df.close.pct_change() * 100
+            self.eqc_df['c%change'] = (((self.eqc_df.close / initial_equity) - 1) * 100)
+            self.eqc_df = self.eqc_df.round(2)
+            self.eqc_df.to_csv(self.output_path + 'equity_curve.csv')
+
+        self.drawdown = pd.DataFrame(data={'roll_max': self.eqc_df.close.rolling(252, min_periods=1).max()},
+                                     index=self.eqc_df.index)
+        self.drawdown['daily'] = (self.eqc_df.close / self.drawdown.roll_max - 1) * 100
+        self.drawdown['daily_max'] = self.drawdown.daily.rolling(252, min_periods=1).min()
+        self.drawdown = self.drawdown.round(2)
+
+        self.results = {'n_trades': p.number_of_trades,
+                        'max_drawdown': self.drawdown.daily_max.min(),
+                        'median%pnl': self.log_df['%change'].median().__round__(2),
+                        'min%pnl': self.log_df['%change'].min(),
+                        'max%pnl': self.log_df['%change'].max(),
+                        'median_dur': self.log_df.duration.median(),
+                        'min_dur': self.log_df.duration.min(),
+                        'max_dur': self.log_df.duration.max(),
+                        '%profitable': (np.count_nonzero(self.log_df.profitable != 0) / len(
+                            self.log_df.profitable) * 100).__round__(2),
+                        'commission_paid': p.commission_paid.__round__(2),
+                        'perf': self.eqc_df['c%change'][-1],
+                        'ann_perf': (((1 + ((self.eqc_df.close[-1] - initial_equity) / initial_equity))
+                                      ** (1 / (self.duration.days / 365.25)) - 1) * 100).__round__(2),
+                        'bm_perf': self.index['c%change'][-1],
+                        'bm_ann_perf': (((1 + (
+                                (self.index.close[-1] - self.index.close[0]) / self.index.close[0]))
+                                         ** (1 / (self.duration.days / 365.25)) - 1) * 100).__round__(2)}
+
+        if self.runtime_messages:
+            print(f'Finished:                                   ...{(time.time() - t1).__round__(2)} sec elapsed.')
+            print(
+                f'Time per trading day:                       ...{((time.time() - t1) / len(self.trading_days) * 1000).__round__(2)} ms.')
+
+        self.runtime = (time.time() - self.tr).__round__(2)
+        if self.runtime_messages:
+            print(f'Total runtime ex. data import:              ...{self.runtime} sec.')
+
+    def optimize_strategy(self, strategy, parameters, run_best=True):
+        """Performs parameter optimization on a provided strategy. Not implemented in the current version of ndxtest (0.0.1).
+
+        :param ndxtest.backtest.Strategy strategy: Strategy for signal generation that is supposed to be optimized.
+        :param dict parameters: A dictionary of parameters to optimize.
+        :param bool, default=True run_best: If True, runs the backtest with the best-performing parameters for the strategy.
+
+        :returns: None
+        :rtype: None
+        """
+        if _VERSION == "0.0.1":
+            raise NotImplementedError(f"This feature is currently not implemented! (version: {_VERSION})")
+
+        def frange(x, y, jump):
+            while x <= y:
+                yield float(x)
+                x += decimal.Decimal(jump)
+
+        self.parameters = parameters
+
+        for k in self.parameters.keys():
+            if not parameters[k]:
+                continue
+            if any(isinstance(v, float) for v in parameters[k]):
+                lo, hi, step = tuple(decimal.Decimal(str(x)) for x in parameters[k])
+                self.parameters[k] = [p for p in frange(lo, hi, step)]
+            else:
+                lo, hi, step = parameters[k]
+                self.parameters[k] = [p for p in range(lo, hi + step, step)]
+
+        print(self.parameters)
+
+        permutations = [element for element in itertools.product(*self.parameters.values())]
+        self.parameter_permutations = [{k: v for (k, v) in zip(self.parameters.keys(), comb)} for comb in permutations]
+
+        print(f'There are {len(self.parameter_permutations)} parameter combinations to run.')
+        print(
+            f'Running the optimization will approximately take {(len(self.parameter_permutations) * self.runtime * 1.2).__round__(2)} seconds.')
+        if input(f'Proceed (Y/N): ').upper() == 'Y':
+            self.runtime_messages = False
+            s = []
+            d = pd.DataFrame(columns=list(self.parameters.keys()))
+            for parameters in self.parameter_permutations:
+                self.generate_signals(strategy, parameters)
+                self.run_backtest(long_only=True,
+                                  commission=self.commission,
+                                  max_positions=self.max_positions,
+                                  initial_equity=self.initial_equity,
+                                  max_trade_duration=self.max_trade_duration,
+                                  stoploss=self.stoploss,
+                                  eqc_method='approx')
+
+                print(f'{parameters} --> {self.results["perf"]}')
+
+                s.append(self.results['perf'])
+                d = d.append(parameters, ignore_index=True)
+
+            self.optimization_results = pd.Series(data=s, index=pd.MultiIndex.from_frame(d), name='performance')
+            self.optimization_results.to_csv('output\\optimization_results.csv')
+
+            combs = list(itertools.combinations(list(self.parameters.keys()), 2))
+
+            fig3, axs3 = plt.subplots(1, len(combs), figsize=(9, 9 / len(combs)), gridspec_kw={"wspace": .5})
+            for i, combination in enumerate(combs):
+                hm = self.optimization_results.groupby(list(combination)).mean().unstack()
+                sns.heatmap(hm[::], annot=True, ax=axs3 if len(combs) == 1 else axs3[i], cmap='viridis')
+                mp = [p for p in list(self.parameters.keys()) if p not in combination]
+                axs3.title.set_text(f'Performance') if len(combs) == 1 else axs3[i].title.set_text(
+                    f'Mean of all {mp} runs.')
+
+            plt.savefig("f3.png", dpi=None, facecolor='w', edgecolor='w')
+
+            self.best_parameters = {f'p{i + 1}': val for i, val in enumerate(self.optimization_results.idxmax())}
+            self.opt = True
+
+            if run_best:
+                self.generate_signals(strategy, self.best_parameters)
+                self.run_backtest(long_only=True,
+                                  commission=self.commission,
+                                  max_positions=self.max_positions,
+                                  initial_equity=self.initial_equity,
+                                  max_trade_duration=self.max_trade_duration,
+                                  stoploss=self.stoploss,
+                                  eqc_method='full')
+
+    def report(self):
+        """Generates .xlsx and .pdf reports of the last run backtest. Saves them in data/output_YYYY-MM-DD_HH-MM-SS (current datetime).
+
+        :returns: None
+        :rtype: NoneType
+        """
+
+        fig1, axs1 = plt.subplots(3, 1, figsize=(9, 6))
+        axs1[0].plot(self.index['c%change'].index, self.index['c%change'], color='blue', label='Benchmark')
+        axs1[0].plot(self.eqc_df['c%change'].index, self.eqc_df['c%change'], color='black',
+                     label='Backtest')
+        axs1[0].set_xticks([])
+        axs1[0].set_xticklabels([])
+        axs1[0].set_ylabel('Cumulative % Change')
+        axs1[0].grid(axis='y')
+        axs1[0].legend()
+        axs1[1].plot(self.drawdown['daily'].index, self.drawdown['daily'], color='black', label='Drawdown')
+        axs1[1].plot(self.drawdown['daily_max'].index, self.drawdown['daily_max'], color='red',
+                     label='Max. 1Yr Drawdown')
+        axs1[1].set_xticks([])
+        axs1[1].set_xticklabels([])
+        axs1[1].set_ylabel('1Yr Drawdown')
+        axs1[1].grid(axis='y')
+        axs1[1].legend()
+        axs1[2].plot(self.exposure['n_long'].index, self.exposure['n_long'], color='blue', label='Long Positions')
+        axs1[2].plot(self.exposure['n_short'].index, self.exposure['n_short'], color='red', label='Short Positions')
+        axs1[2].plot(self.exposure['n_free'].index, self.exposure['n_free'], color='grey', label='Free Slots')
+        axs1[2].set_xlabel('Date')
+        axs1[2].set_ylabel('Positions')
+        axs1[2].grid(axis='y')
+        axs1[2].legend()
+        fig1.tight_layout()
+
+        plt.savefig(self.output_path + "f1.png", dpi=None, facecolor='w', edgecolor='w')
+
+        fig2, axs2 = plt.subplots(1, 3, figsize=(9, 3), gridspec_kw={"wspace": .5})
+        main_corr = self.log_df[['entry_score', 'duration', 'entry_price', 'profitable']]
+        self.correlations['main_corr'] = pd.DataFrame(data=main_corr.corr()['profitable'],
+                                                      index=['entry_score', 'duration', 'entry_price', 'profitable'])
+        axs2[0].title.set_text('General Correlations')
+        sns.heatmap(self.correlations['main_corr'], annot=True, square=False, ax=axs2[0], cmap='viridis')
+
+        entry_corr = pd.DataFrame()
+        entry_corr['mon'] = self.log_df['entry_weekday'] == 1
+        entry_corr['tue'] = self.log_df['entry_weekday'] == 2
+        entry_corr['wed'] = self.log_df['entry_weekday'] == 3
+        entry_corr['thu'] = self.log_df['entry_weekday'] == 4
+        entry_corr['fri'] = self.log_df['entry_weekday'] == 5
+        entry_corr['profitable'] = self.log_df['profitable']
+        self.correlations['entry_corr'] = pd.DataFrame(data=entry_corr.corr()['profitable'],
+                                                       index=['mon', 'tue', 'wed', 'thu', 'fri', 'profitable'])
+        axs2[1].title.set_text('Entry Weekday Correlations')
+        sns.heatmap(self.correlations['entry_corr'], annot=True, square=False, ax=axs2[1], cmap='viridis')
+
+        exit_corr = pd.DataFrame()
+        exit_corr['mon'] = self.log_df['exit_weekday'] == 1
+        exit_corr['tue'] = self.log_df['exit_weekday'] == 2
+        exit_corr['wed'] = self.log_df['exit_weekday'] == 3
+        exit_corr['thu'] = self.log_df['exit_weekday'] == 4
+        exit_corr['fri'] = self.log_df['exit_weekday'] == 5
+        exit_corr['profitable'] = self.log_df['profitable']
+        self.correlations['exit_corr'] = pd.DataFrame(data=exit_corr.corr()['profitable'],
+                                                      index=['mon', 'tue', 'wed', 'thu', 'fri', 'profitable'])
+        axs2[2].title.set_text('Exit Weekday Correlations')
+        sns.heatmap(self.correlations['exit_corr'], annot=True, square=False, ax=axs2[2], cmap='viridis')
+
+        plt.savefig(self.output_path + "f2.png", dpi=None, facecolor='w', edgecolor='w')
+
+        class PDF(FPDF):  # A4: w = 210, h = 297
+            pass
+
+        pdf = PDF()
+        pdf.set_left_margin(margin=30)
+        pdf.add_page()
+        pdf.set_font('helvetica', size=12)
+
+        pdf.cell(w=80, align='', txt=f'BackTest Report:', ln=0)
+        pdf.cell(w=80, align='', txt=f'{dt.datetime.now().date()}', ln=1)
+        pdf.cell(w=80, align='', txt=f'Benchmark Index:', ln=0)
+        pdf.cell(w=80, align='', txt=f'SPY', ln=1)
+
+        pdf.ln(140)
+        pdf.image(self.output_path + 'f1.png', x=15, y=25, w=180, h=120)
+
+        pdf.cell(w=80, align='', txt=f'Parameters:', ln=0)
+        pdf.cell(w=80, align='', txt=f'{self.best_parameters if self.opt else "not optimized"}', ln=1)
+        pdf.cell(w=80, align='', txt=f'Start date:', ln=0)
+        pdf.cell(w=80, align='', txt=f'{self.sd.date()}', ln=1)
+        pdf.cell(w=80, align='', txt=f'End date:', ln=0)
+        pdf.cell(w=80, align='', txt=f'{self.ed.date()}', ln=1)
+        pdf.cell(w=80, align='', txt=f"Initial Equity [$]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.initial_equity}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Final Equity [$]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.eqc_df.close[-1]}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Max. Drawdown [%]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['max_drawdown']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Performance Strategy [%]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['perf']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Performance Benchmark [%]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['bm_perf']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Ann. Performance Strategy [%]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['ann_perf']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Ann. Performance Benchmark [%]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['bm_ann_perf']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Total commissions paid [$]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['commission_paid']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Number of trades executed:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['n_trades']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Median trade duration [Days]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['median_dur']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Worst trade [%]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['min%pnl']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Best trade [%]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['max%pnl']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Median trade [%]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['median%pnl']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"Profitable trades [%]:", ln=0)
+        pdf.cell(w=80, align='', txt=f"{self.results['%profitable']}", ln=1)
+
+        pdf.add_page()
+        # pdf.ln(10)
+        # pdf.cell(w=190, align='C', txt=f"Correlations with profitability of trades:")
+        # pdf.image('output\\f2.png', x=15, y=20, w=180, h=60)
+        if self.opt:
+            pdf.cell(w=190, align='', txt=f"Optimization:")
+            shape = img.imread(self.output_path + 'f3.png').shape
+            pdf.image(self.output_path + 'f3.png', x=10, y=20, w=shape[0] * (160 / shape[0]),
+                      h=shape[1] * (160 / shape[1]))
+
+        pdf.output(self.output_path + 'test.pdf', 'F')
+
+        os.remove(self.output_path + 'f1.png')
+        os.remove(self.output_path + 'f2.png')
+        if self.opt:
+            os.remove(self.output_path + 'f3.png')
+
+    def plot_ticker(self, symbol):
+        """Plots a candlestick chart for a specific ticker symbol and highlights the signals generated by the strategy.
+
+        :param str symbol: The ticker symbol to plot, e.g. 'AMZN'
+
+        :returns: None
+        :rtype: NoneType
+        """
+
+        df = self.data[symbol]
+
+        long_entries = df['entry_signals'].replace([0, -1], np.nan)
+        long_exits = df['exit_signals'].replace([0, 1], np.nan)
+        short_entries = df['entry_signals'].replace([0, 1], np.nan)
+        short_exits = df['exit_signals'].replace([0, -1], np.nan)
+
+        long_entries = mpf.make_addplot(long_entries, color='green', panel=2, ylim=(-3, 3), secondary_y=False,
+                                        type="scatter", markersize=20, marker='^', ylabel='Long Signals')
+        long_exits = mpf.make_addplot(long_exits, color='red', panel=2, ylim=(-3, 3), secondary_y=False,
+                                      type="scatter", markersize=20, marker='v')
+        short_entries = mpf.make_addplot(short_entries, color='green', panel=3, ylim=(-3, 3), secondary_y=False,
+                                         type="scatter", markersize=20, marker='^', ylabel='Short Signals')
+        short_exits = mpf.make_addplot(short_exits, color='red', panel=3, ylim=(-3, 3), secondary_y=False,
+                                       type="scatter", markersize=20, marker='v')
+
+        addplts = [long_entries, long_exits, short_entries, short_exits]
+
+        mpf.plot(self.data[symbol], type="candle", style='blueskies', xrotation=45, volume=True,
+                 addplot=addplts, panel_ratios=(1, 0.5, 0.5, 0.5), warn_too_much_data=10000)
+
+    def query_missing_records(self, date):
+        """Queries, whether any symbols lack price data for a specific date. (for debugging the library)
+
+        :param datetime.datetime or str date: If string it must be 'YYYY-MM-DD' formatted.
+
+        :returns: None
+        :rtype: NoneType
+        """
+
+        if not isinstance(date, dt.datetime):
+            if isinstance(date, str):
+                date = dt.datetime.strptime(date, '%Y-%m-%d')
+            else:
+                raise TypeError("Please provide a 'YYYY-MM-DD' formatted string or a datetime.datetime object.")
+
+        if date.isoweekday() in {6, 7}:
+            raise ValueError(f'{date} is not a weekday. Call function with weekdays only.')
+
+        if date < self.sd:
+            print(f'Warning: {date} is not within the backtest period. The record might be available but not imported.')
+
+        for k, v in self.input_data.items():
+            if date not in v.index:
+                if date in self.constituents[k]['dr']:
+                    print(f'Data for {k} is missing the record for {date}.')

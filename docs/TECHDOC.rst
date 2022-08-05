@@ -12,25 +12,35 @@ backtest.py
 ~~~~~~~~~~~
 
 .. automodule:: ndxtest.backtest
-    :members:
+
+Class :class:`ndxtest.backtest.BackTest`
+----------------------------------------
+
+.. autoclass:: ndxtest.backtest.BackTest
+   :special-members: __init__
+   :members:
+
+Class :class:`ndxtest.backtest.Strategy`
+----------------------------------------
+
+.. autoclass:: ndxtest.backtest.Strategy
+   :special-members:
+   :members:
 
 indicators.py
 ~~~~~~~~~~~~~
 
 .. automodule:: ndxtest.indicators
-    :members:
 
 priceaction.py
 ~~~~~~~~~~~~~~
 
 .. automodule:: ndxtest.priceaction
-    :members:
 
 utils.py
 ~~~~~~~~
 
 .. automodule:: ndxtest.utils
-    :members:
 
 .. toctree::
    :maxdepth: 2

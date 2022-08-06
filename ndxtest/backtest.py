@@ -1,4 +1,4 @@
-"""This is backtest.py, the main module of the ndxtest package containing :class:`ndxtest.backtest.BackTest` and
+"""This is the main module of the ndxtest package containing :class:`ndxtest.backtest.BackTest` and
 :class:`ndxtest.backtest.Strategy`.
 """
 
@@ -188,7 +188,8 @@ class BackTest:
     to the user manual for examples how to use this class. The technical documentation focuses on listing
     instance variables and methods.
 
-    Initial values refer to the values set upon initialization.
+    :class:`ndxtest.backtest.BackTest` has more instance variables than listed below. The omitted variables are
+    of no significance to users of ndxtest.
 
     :ivar bool runtime_messages: If True, prints times needed for computations to the console. Initial value: True
     :ivar str data_path: Absolute path to the data folder. Initial value: user input (__init__)
@@ -197,38 +198,17 @@ class BackTest:
     :ivar dict data: Copy of `input_data` with trading signals added to price data. Initial value: None
     :ivar pd.DataFrame input_index: Contains the price data of the reference index. Initial value: None
     :ivar pd.DataFrame index: Copy of `index` with computed indicators for signal generation. Initial value: None
-    :ivar time.time t0: Stores times needed for computation. Initial value: None
-    :ivar time.time tr: Stores times needed for computation. Initial value: None
-    :ivar time.time runtime: Stores times needed for computation. Initial value: None
-    :ivar datetime.datetime sd: The start date of the backtest. Initial value: None
-    :ivar datetime.datetime ed: The end date of the backtest. Initial value: None
-    :ivar datetime.timedelta duration: The duration of the backtest. Initial value: None
     :ivar pd.DateRange dr: The range of dates between start and end date. Initial value: None
     :ivar pd.DateRange edr: Extended `dr` with additional data needed for calculating lagging indicators. Initial value: None
     :ivar bool dr_messages: If True, prints information on missing price data for `dr` and/or `edr` to the console. Initial value: None
     :ivar list trading_days: A list of all trading days between start and end date. Initial value: None
-    :ivar dict constituents: A nested dict containing symbol specific dr's and edr's. See `ndxtest.utils.constituents`. Initial value: None
     :ivar list existing_symbols: All symbols included in the index during `dr` that exist in data\\lib. Initial value: None
     :ivar list missing_symbols: All symbols included in the index during `dr` that *do not* exist in data\\lib. Initial value: None
-    :ivar float commission: Commission that is paid upon entering/exiting positions. Initial value: None
-    :ivar int max_positions: Maximum number of positions (slots) in the portfolio. Initial value: None
-    :ivar float initial_equity: The initial capital to start with. Initial value: None
-    :ivar int max_trade_duration: Maximum number of days before positions will be closed. Will close positions independent of any signals provided by the strategy. Initial value: None
-    :ivar float stoploss: The maximum % (e.g. 0.05) of adverse price movement before positions will be closed. Will close positions independent of any signals provided by the strategy. Initial value: None
-    :ivar str entry_mode: The mode of entry. 'open' = buy the open on the day after signal completion. As of now (Version 0.0.1), this is the only mode implemented. Initial value: None
-    :ivar defaultdict(list) signals: Contains the computed signals with the respective trading days as keys. Initial value: defaultdict(list)
-    :ivar dict eqc: Gets filled with ohlc data for the portfolio while the backtest runs. Initial value: {}
-    :ivar pd.DataFrame eqc_df: A pd.DataFrame generated from `eqc`. Initial value: pd.DataFrame
-    :ivar dict results: Gets filled with some high-level results (e.g. the winrate) of the backtest. Used to generate reports. Initial value: {}
-    :ivar dict drawdown: Gets filled with data used to calculate the (yearly) maximum drawdown. Initial value: {}
-    :ivar dict exposure: Gets filled with info on the regarding the current exposure to the market. Initial value: {}
-    :ivar dict correlations: Is currently not used (Version 0.0.1). Initial value: {}
-    :ivar pd.DataFrame log_df: Is keeping a log of trades. Used to generate reports. Initial value: pd.DataFrame
-    :ivar bool opt: Currently not used, optimization not implemented (Version: 0.0.1).
-    :ivar pd.Series optimization_results: Currently not used, optimization not implemented (Version: 0.0.1).
-    :ivar dict best_parameters: Currently not used, optimization not implemented (Version: 0.0.1).
-    :ivar dict parameters: Currently not used, optimization not implemented (Version: 0.0.1).
-    :ivar list parameter_permutations: Currently not used, optimization not implemented (Version: 0.0.1).
+    :ivar pd.DataFrame eqc_df: A pd.DataFrame containing the equity curve of the backtest. Initial value: pd.DataFrame
+    :ivar dict results: Contains high-level results (e.g. the winrate) of the backtest. Used to generate reports. Initial value: {}
+    :ivar dict drawdown: Contains data used to calculate the (yearly) maximum drawdown. Initial value: {}
+    :ivar dict exposure: Contains data on the net exposure to the market over time. Initial value: {}
+    :ivar pd.DataFrame log_df: A pd.DataFrame containing a log of trades. Initial value: pd.DataFrame
     """
 
     def __init__(self, data_path, runtime_messages=True):

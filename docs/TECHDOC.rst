@@ -14,48 +14,76 @@ backtest.py
 
 Class :class:`ndxtest.backtest.BackTest`
 ----------------------------------------
-
 .. autoclass:: ndxtest.backtest.BackTest
    :special-members: __init__
    :members:
 
 Class :class:`ndxtest.backtest.Strategy`
 ----------------------------------------
-
 .. autoclass:: ndxtest.backtest.Strategy
    :special-members: __init__
    :members:
 
+
 indicators.py
 ~~~~~~~~~~~~~
-
 **`ndxtest.indicators`** contains indicators that can be used to build trading strategies.
 
 General indicators
 ------------------
 The following functions are general indicators:
 
-.. automodule:: ndxtest.indicators
-   :members: roc, sma, ema, ssma, atr, adx, rsi, macd, bbands
+.. autofunction:: ndxtest.indicators.roc
+.. autofunction:: ndxtest.indicators.sma
+.. autofunction:: ndxtest.indicators.ema
+.. autofunction:: ndxtest.indicators.ssma
+.. autofunction:: ndxtest.indicators.rsi
+.. autofunction:: ndxtest.indicators.macd
+.. autofunction:: ndxtest.indicators.bbands
+.. autofunction:: ndxtest.indicators.atr
+.. autofunction:: ndxtest.indicators.adx
 
 Crossover indicators
 --------------------
 The following functions can be used to build conditions based on *crossovers*:
 
-.. automodule:: ndxtest.indicators
-   :members: static, crossover, intraday_price_crossover
+.. autofunction:: ndxtest.indicators.static
+.. autofunction:: ndxtest.indicators.crossover
+.. autofunction:: ndxtest.indicators.intraday_price_crossover
 
 Candlesticks and price action
 -----------------------------
 The following functions detect certain types of candlesticks or price actions:
 
-.. automodule:: ndxtest.indicators
-   :members: candle, green_candle, red_candle, bullish_pin_bar, bearish_pin_bar
+.. autofunction:: ndxtest.indicators.price_action
+.. autofunction:: ndxtest.indicators.green_candle
+.. autofunction:: ndxtest.indicators.red_candle
+.. autofunction:: ndxtest.indicators.bullish_pin_bar
+.. autofunction:: ndxtest.indicators.bearish_pin_bar
+.. autofunction:: ndxtest.indicators.inside_bar
+.. autofunction:: ndxtest.indicators.inside_open
 
 utils.py
 ~~~~~~~~
+**`ndxtest.utils`** contains the internally used class :class:`ndxtest.utils.Portfolio` as well as functions helping to
+maintain and update the data library.
 
-.. automodule:: ndxtest.utils
+Class :class:`ndxtest.utils.LibManager`
+---------------------------------------
+.. autoclass:: ndxtest.utils.LibManager
+   :special-members: __init__
+   :members:
+
+Class :class:`ndxtest.utils.Portfolio`
+--------------------------------------
+.. autoclass:: ndxtest.utils.Portfolio
+   :special-members: __init__
+   :members:
+
+Miscellaneous
+-------------
+.. autofunction:: ndxtest.utils.constituents
+
 
 .. toctree::
    :maxdepth: 2

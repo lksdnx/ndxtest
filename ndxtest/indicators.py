@@ -282,24 +282,24 @@ def intraday_price_crossover(arr: pd.DataFrame, series: pd.Series, direction: st
 # Candlesticks and Price Action #
 
 
-def candle(arr, prev='c', ineq='gt', curr='c'):
+def price_action(arr, prev='c', op='gt', curr='c'):
     """Versatile function to compare ohlc data of the previous and the current candle.
 
     Examples:
 
     - candle(arr, prev='c', ineq='gt', curr='c') -> True wherever the previous close was greater than the current close.
-    - candle(arr, prev='l', ineq='gt', curr='o') -> True wherever the previous low was greater than the current open. (A gap down candle.)
+    - candle(arr, prev='l', ineq='gt', curr='o') -> True wherever the previous low was greater than the current open (a gap down candle).
 
     :param pd.DataFrame arr: A pd.DataFrame containing ohlc price data.
     :param str prev: Datapoint of the previous candle. Can be either 'o', 'h', 'l' or 'c'.
-    :param str ineq: Inequality operator. Can be either 'gt', 'ge', 'lt' or 'le'.
+    :param str op: Inequality operator. Can be either 'gt', 'ge', 'lt' or 'le'.
     :param str curr: Datapoint of the current candle. Can be either 'o', 'h', 'l' or 'c'.
 
     :returns: A pd.Series, True wherever the conditions were met.
     :rtype: pd.Series of dtype bool
     """
 
-    if not isinstance(prev, str) and isinstance(curr, str) and isinstance(ineq, str):
+    if not isinstance(prev, str) and isinstance(curr, str) and isinstance(op, str):
         raise TypeError("Arguments 'prev', 'curr' and 'ineq' must be of type str.")
 
     if prev not in ['o', 'h', 'l', 'c']:
@@ -308,20 +308,20 @@ def candle(arr, prev='c', ineq='gt', curr='c'):
     if curr not in ['o', 'h', 'l', 'c']:
         raise ValueError("Argument 'curr' must be either 'o', 'h', 'l' or 'c'.")
 
-    if ineq not in ['gt', 'ge', 'lt', 'le']:
+    if op not in ['gt', 'ge', 'lt', 'le']:
         raise ValueError("Argument 'curr' must be either 'gt', 'ge', 'lt' or 'le'.")
 
     ohlc_map = {'o': 'open',
                 'h': 'high',
                 'l': 'low',
                 'c': 'close'}
-    ineq_map = {
+    op_map = {
         'gt': np.greater,
         'ge': np.greater_equal,
         'lt': np.less,
         'le': np.less_equal}
 
-    return ineq_map[ineq](arr[ohlc_map[prev]].shift(1), arr[ohlc_map[curr]])
+    return op_map[op](arr[ohlc_map[prev]].shift(1), arr[ohlc_map[curr]])
 
 
 def green_candle(arr):
@@ -353,7 +353,7 @@ def bullish_pin_bar(arr, j=3):
 
     Herein, bullish pin bars are defined as follows:
 
-    - The lower wick of the candle must be at least three (j) times longer than the body of the candle.
+    - The lower wick of the candle must be at least three (j) times longer than candle body.
     - The lower boundary of the candle-body must be situated in the upper third of the candle.
     - The body of the candle must be within the body of the previous candle
     - The lower wick of the pin bar must reach a lower low than the previous candle.
@@ -381,10 +381,10 @@ def bearish_pin_bar(arr, j=3):
 
     Herein, bearish pin bars are defined as follows:
 
-    - The upper wick of the candle must be at least three (j) times longer than the body of the candle.
+    - The upper wick of the candle must be at least three (j) times longer than candle body.
     - The upper boundary of the candle-body must be situated in the lower third of the candle.
     - The body of the candle must be within the body of the previous candle
-    - The upper wick of the pin bar must reach a higher high, compared to the upper wick of the previous candle.
+    - The upper wick of the pin bar must reach a higher high than the previous candle.
 
     :param pd.DataFrame arr: A pd.DataFrame containing ohlc price data.
     :param int, default=3 j: The ratio of lower wick length to candle body length.
@@ -405,26 +405,29 @@ def bearish_pin_bar(arr, j=3):
 
 
 def inside_bar(arr):
-    """Detects inside bars."""
+    """Detects inside bars.
+
+    Inside bars are defined as follows:
+
+    - The high of the candle must be lower than the previous candles high.
+    - The low of the candle must be higher than the previous candles low.
+
+    :param pd.DataFrame arr: A pd.DataFrame containing ohlc price data.
+
+    :returns: A pd.Series, True where inside bars were detected.
+    :rtype: pd.Series of dtype bool
+    """
     return (arr['high'] < arr['high'].shift(1)) & (arr['low'] > arr['low'].shift(1))
 
 
-def gap_up_body(arr):
-    return np.maximum(arr['close'].shift(1), arr['open'].shift(1)) < arr['open']
-
-
-def gap_down_body(arr):
-    return np.minimum(arr['close'].shift(1), arr['open'].shift(1)) > arr['open']
-
-
-def gap_up_wick(arr):
-    return arr['high'].shift(1) < arr['open']
-
-
-def gap_down_wick(arr):
-    return arr['low'].shift(1) > arr['open']
-
-
 def inside_open(arr):
+    """Detects candles, opening within the body of the previous candle.
+
+    :param pd.DataFrame arr: A pd.DataFrame containing ohlc price data.
+
+    :returns: A pd.Series, True where the candles open was within the previous candles body.
+    :rtype: pd.Series of dtype bool
+    """
+
     return (np.minimum(arr['close'].shift(1), arr['open'].shift(1)) < arr['open']) & \
            (np.maximum(arr['close'].shift(1), arr['open'].shift(1)) > arr['open'])

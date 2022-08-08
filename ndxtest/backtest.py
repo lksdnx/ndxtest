@@ -246,7 +246,7 @@ class BackTest:
 
         self.runtime_messages = runtime_messages
         self.data_path = data_path + 'data\\'
-        self.output_path = data_path + 'output\\'
+        # self.output_path = data_path + 'output\\'
         self.data_path_symbols = [symbol[:-4] for symbol in os.listdir(self.data_path + 'lib\\') if '^' not in symbol]
 
         self.input_data = {}

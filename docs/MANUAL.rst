@@ -217,12 +217,9 @@ Now lets try to improve on ``s1`` and build ``s2``
 
 ````
 
+Evaluating trading signals
+--------------------------
 
-
-
-
-If weekend or US market closed, the next trading day will be set as start date.
-If weekend or US market closed, the next trading day will be set as end date.
 
 .. toctree::
    :maxdepth: 2

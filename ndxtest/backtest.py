@@ -221,8 +221,8 @@ class BackTest:
         suffix = str(dt.datetime.now()).split('.')[0]
         suffix = suffix.replace(' ', '_')
         suffix = suffix.replace(':', '-')
-        os.mkdir(self.data_path + suffix + '\\')
-        self.output_path = self.data_path + suffix + '\\'
+        os.mkdir(self.data_path + 'backtest_' + suffix + '\\')
+        self.output_path = self.data_path + 'backtest_' + suffix + '\\'
 
         self.input_data = {}
         self.data = None

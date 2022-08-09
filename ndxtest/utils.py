@@ -1,13 +1,147 @@
 """"""
-import os
-import time
 from collections import OrderedDict
 import datetime as dt
+from distutils.dir_util import copy_tree
+import functools
+import math
+import numpy as np
+import os
 import pandas as pd
 import pandas.io.formats.excel as pde
-import numpy as np
+import time
 import yfinance as yf
-from distutils.dir_util import copy_tree
+
+
+def constituents(start_date, end_date, lag, data_path):
+    """For each symbol, extracts the date ranges of index inclusion between the start and end date from the histfile.
+
+    Is called within the `import_data()` method of :class:`ndxtest.backtest.BackTest`. `edr` refers to the extended date
+    range including the lag.
+
+    :param datetime.datetime start_date: The start date of the backtest period.
+    :param datetime.datetime end_date: The end date of the backtest period.
+    :param datetime.timedelta lag: A trailing timedelta added to the start_date. Necessary for calculating lagging indicators such as moving averages.
+    :param str data_path: Has to represent the absolute path to where the lib folder is stored.
+
+    :returns: A nested dictionary as follows: {symbol: {`dr`: pandas.daterange, `edr`: pandas.daterange}, ...}
+    :rtype: dict
+    """
+
+    hist = pd.read_excel(data_path + 'lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
+
+    dr = pd.date_range(start_date, end_date)
+    edr = pd.date_range(start_date - lag, end_date)
+    hist = hist.loc[hist.index.intersection(dr)]
+
+    tickers = []
+    for row in hist.symbols.values:
+        for s in row.split(','):
+            if s not in tickers:
+                tickers += [s]
+
+    cons = {k: None for k in tickers}
+
+    added = [s for s in hist.added.values if str(s) != 'nan']
+    removed = [s for s in hist.removed.values if str(s) != 'nan']
+
+    multiple = list(set(added).intersection(set(removed)))
+    added = [s for s in added if s not in multiple]
+    removed = [s for s in removed if s not in multiple]
+    whole_period = [s for s in tickers if s not in added and s not in removed and s not in multiple]
+
+    for s in multiple:
+        df = hist.loc[(hist['added'] == s) | (hist['removed'] == s)]
+        if len(df.index) > 2:
+            print(f'Warning: {s} had > 2 index inclusions/removals during time period.')
+
+        if df.loc[df.index[0]].added == s:
+            cons[s] = {'dr': pd.date_range(df.index[0], df.index[1]),
+                       'edr': pd.date_range(df.index[0] - lag, df.index[1])}
+        if df.loc[df.index[0]].removed == s:
+            cons[f'{s}'] = {'dr': pd.date_range(start_date, df.index[0]), 'edr': pd.date_range(start_date - lag, df.index[0])}
+            cons[f'{s}*'] = {'dr': pd.date_range(df.index[1], end_date), 'edr': pd.date_range(df.index[1] - lag, end_date)}
+
+    for s in whole_period:
+        cons[s] = {'dr': dr,
+                   'edr': edr}
+    for s in added:
+        cons[s] = {'dr': pd.date_range(hist.loc[hist.added == s].index[0], end_date),
+                   'edr': pd.date_range(hist.loc[hist.added == s].index[0] - lag, end_date)}
+        if s in removed:
+            cons[s] = {'dr': pd.date_range(hist.loc[hist.added == s].index[0], hist.loc[hist.removed == s].index[0]),
+                       'edr': pd.date_range(hist.loc[hist.added == s].index[0] - lag, hist.loc[hist.removed == s].index[0])}
+            removed.remove(s)
+    for s in removed:
+        cons[s] = {'dr': pd.date_range(start_date, hist.loc[hist.removed == s].index[0]),
+                   'edr': pd.date_range(start_date - lag, hist.loc[hist.removed == s].index[0])}
+    return cons
+
+
+def connect(data_path, gspc_strict=False, hist_strict=False):
+    """Performs checks on the provided `data_path`.
+
+    The `data_path` has to be either the parent directory containing the `data` folder or
+    the directory of the `data` folder itself. The `data` folder has to contain the `lib`
+    folder.
+
+    :param str data_path: The `data` directory or its parent directory.
+    :param bool, default=False, gspc_strict: If True, '^GSPC.csv' has to be in the `lib` folder.
+    :param bool, default=False, hist_strict: If True, '^HIST.xlsx' has to be in the `lib` folder.
+
+    :raises: ValueError if data_path was incorrect.
+
+    :returns: The data_path if it has passed the checks.
+    :rtype: str
+    """
+
+    if not isinstance(data_path, str):
+        raise TypeError('data_path was not of type str')
+
+    if data_path.endswith('\\'):
+        pass
+    else:
+        data_path += '\\'
+
+    if data_path.endswith('data\\'):
+        pass
+    elif 'data' in os.listdir(data_path):
+        data_path += 'data\\'
+    else:
+        raise ValueError("The provided path does not end with and does not contain data\\.")
+
+    if 'lib' not in os.listdir(data_path):
+        raise ValueError("data\\ found, but folder lib\\ in data\\.")
+
+    if gspc_strict:
+        if '^GSPC.csv' not in os.listdir(data_path + 'lib\\'):
+            raise FileNotFoundError("data\\lib\\ found, but '^GSPC.csv' is missing.")
+
+    if hist_strict:
+        if '^HIST.xlsx' not in os.listdir(data_path + 'lib\\'):
+            raise FileNotFoundError("data\\lib\\ found, but '^HIST.xlsx' is missing.")
+
+    return data_path
+
+
+def timeit_decorator(func):
+    """This decorator prints the time needed for function execution to the console.
+
+    :param function func: Any function.
+    """
+    @functools.wraps(func)
+    def wrapper_func(*args, **kwargs):
+        first = f"Finished {func.__name__}..."
+        j = 40 - len(func.__name__)
+        indent = ''
+        for i in range(0, j):
+            indent += ' '
+        t0 = time.time()
+        func(*args, **kwargs)
+        t1 = time.time()
+        delta = (t1 - t0).__round__(2)
+        print(first + f"{indent}...{delta} sec elapsed")
+        return None
+    return wrapper_func
 
 
 class Portfolio:
@@ -247,27 +381,12 @@ class LibManager:
     """
 
     def __init__(self, data_path):
-        """Contructor method.
+        """Constructor method.
 
-        :param str data_path: Has to represent the absolute path to where the data folder is stored.
+        :param str data_path: Has to represent directory to the `data` folder, or the `data` folders parent directory.
         """
-        if not isinstance(data_path, str):
-            raise TypeError('data_path was not of type str')
 
-        if data_path[-1] == '\\':
-            pass
-        else:
-            data_path += '\\'
-
-        if 'data' not in os.listdir(data_path):
-            print("Initialization failed.")
-            raise FileNotFoundError("data\\ not found in data_path")
-
-        if 'lib' not in os.listdir(data_path + 'data\\'):
-            print("Initialization failed.")
-            raise FileNotFoundError("data\\ found, but lib\\ folder not found in data\\")
-
-        self.data_path = data_path + 'data\\'
+        self.data_path = connect(data_path)
 
     def download_batch(self, symbol_list, period='5y'):
         """Downloads price data for new symbols from https://finance.yahoo.com/ and performs some formatting.
@@ -348,13 +467,7 @@ class LibManager:
         the user manual.
         """
 
-        if '^HIST.xlsx' not in os.listdir(self.data_path + 'lib\\'):
-            print("Initialization failed.")
-            raise FileNotFoundError("data\\lib\\ found, but '^HIST.xlsx' is missing.")
-
-        if '^GSPC.csv' not in os.listdir(self.data_path + 'lib\\'):
-            print("Initialization failed.")
-            raise FileNotFoundError("data\\lib\\ found, but '^GSPC.csv' is missing.")
+        self.data_path = connect(self.data_path, gstrict=True, hstrict=True)
 
         from_dir = self.data_path + 'lib\\'
         to_dir = self.data_path + f'\\lib_backup_{str(dt.datetime.now())[:10]}\\'
@@ -482,6 +595,8 @@ class LibManager:
         :rtype: NoneType
         """
 
+        self.data_path = connect(self.data_path, hstrict=True)
+
         pde.ExcelFormatter.header_style = None
         hist = pd.read_excel(self.data_path + 'lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
         data = []
@@ -513,6 +628,8 @@ class LibManager:
 
         For more information on how to maintain the histfile please refer to the user manual.
         """
+
+        self.data_path = connect(self.data_path, hstrict=True)
 
         if not isinstance(action, str):
             raise TypeError("Argument `action` must be of type str.")
@@ -552,66 +669,3 @@ class LibManager:
         return None
 
 
-def constituents(start_date, end_date, lag, data_path):
-    """For each symbol, extracts the date ranges of index inclusion between the start and end date from the histfile.
-
-    Is called within the `import_data()` method of :class:`ndxtest.backtest.BackTest`. `edr` refers to the extended date
-    range including the lag.
-
-    :param datetime.datetime start_date: The start date of the backtest period.
-    :param datetime.datetime end_date: The end date of the backtest period.
-    :param datetime.timedelta lag: A trailing timedelta added to the start_date. Necessary for calculating lagging indicators such as moving averages.
-    :param str data_path: Has to represent the absolute path to where the lib folder is stored.
-
-    :returns: A nested dictionary as follows: {symbol: {`dr`: pandas.daterange, `edr`: pandas.daterange}, ...}
-    :rtype: dict
-    """
-
-    hist = pd.read_excel(data_path + 'lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
-
-    dr = pd.date_range(start_date, end_date)
-    edr = pd.date_range(start_date - lag, end_date)
-    hist = hist.loc[hist.index.intersection(dr)]
-
-    tickers = []
-    for row in hist.symbols.values:
-        for s in row.split(','):
-            if s not in tickers:
-                tickers += [s]
-
-    cons = {k: None for k in tickers}
-
-    added = [s for s in hist.added.values if str(s) != 'nan']
-    removed = [s for s in hist.removed.values if str(s) != 'nan']
-
-    multiple = list(set(added).intersection(set(removed)))
-    added = [s for s in added if s not in multiple]
-    removed = [s for s in removed if s not in multiple]
-    whole_period = [s for s in tickers if s not in added and s not in removed and s not in multiple]
-
-    for s in multiple:
-        df = hist.loc[(hist['added'] == s) | (hist['removed'] == s)]
-        if len(df.index) > 2:
-            print(f'Warning: {s} had > 2 index inclusions/removals during time period.')
-
-        if df.loc[df.index[0]].added == s:
-            cons[s] = {'dr': pd.date_range(df.index[0], df.index[1]),
-                       'edr': pd.date_range(df.index[0] - lag, df.index[1])}
-        if df.loc[df.index[0]].removed == s:
-            cons[f'{s}'] = {'dr': pd.date_range(start_date, df.index[0]), 'edr': pd.date_range(start_date - lag, df.index[0])}
-            cons[f'{s}*'] = {'dr': pd.date_range(df.index[1], end_date), 'edr': pd.date_range(df.index[1] - lag, end_date)}
-
-    for s in whole_period:
-        cons[s] = {'dr': dr,
-                   'edr': edr}
-    for s in added:
-        cons[s] = {'dr': pd.date_range(hist.loc[hist.added == s].index[0], end_date),
-                   'edr': pd.date_range(hist.loc[hist.added == s].index[0] - lag, end_date)}
-        if s in removed:
-            cons[s] = {'dr': pd.date_range(hist.loc[hist.added == s].index[0], hist.loc[hist.removed == s].index[0]),
-                       'edr': pd.date_range(hist.loc[hist.added == s].index[0] - lag, hist.loc[hist.removed == s].index[0])}
-            removed.remove(s)
-    for s in removed:
-        cons[s] = {'dr': pd.date_range(start_date, hist.loc[hist.removed == s].index[0]),
-                   'edr': pd.date_range(start_date - lag, hist.loc[hist.removed == s].index[0])}
-    return cons

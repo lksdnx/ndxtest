@@ -10,15 +10,13 @@ import pandas as pd
 import decimal
 import itertools
 from collections import OrderedDict, defaultdict
-from ndxtest.utils import Portfolio, constituents
+from ndxtest.utils import Portfolio, constituents, connect, timeit_decorator
 import time
 import datetime as dt
 import mplfinance as mpf
 import random
 import seaborn as sns
 from fpdf import FPDF
-
-_VERSION = "0.0.1"
 
 
 class Strategy:
@@ -191,7 +189,6 @@ class BackTest:
     :class:`ndxtest.backtest.BackTest` has more instance variables than listed below. The omitted variables are
     of no significance to users of ndxtest.
 
-    :ivar bool runtime_messages: If True, prints times needed for computations to the console. Initial value: True
     :ivar str data_path: Absolute path to the data folder. Initial value: user input (__init__)
     :ivar list data_path_symbols: List of all symbols found in data\\lib. Initial value: []
     :ivar dict input_data: Dict containing the price data with ticker symbols as keys. Initial value: {}
@@ -211,43 +208,21 @@ class BackTest:
     :ivar pd.DataFrame log_df: A pd.DataFrame containing a log of trades. Initial value: pd.DataFrame
     """
 
-    def __init__(self, data_path, runtime_messages=True):
+    def __init__(self, data_path):
         """Constructor Method. Connects the instance to the data folder. Fails if data folder not present.
 
-        :param data_path: Has to represent the absolute location of the `data` folder.
-        :type data_path: str
+        :param str data_path: The `data` directory or its parent directory.
         """
 
-        if not isinstance(data_path, str):
-            raise TypeError('data_path was not of type str')
-
-        if data_path[-1] == '\\':
-            pass
-        else:
-            data_path += '\\'
-
-        if 'data' not in os.listdir(data_path):
-            print("Initialization failed.")
-            raise FileNotFoundError("data\\ not found in data_path")
-
-        if 'lib' not in os.listdir(data_path + 'data\\'):
-            print("Initialization failed.")
-            raise FileNotFoundError("data\\ found, but lib\\ folder not found in data\\")
-
-        if '^HIST.xlsx' not in os.listdir(data_path + 'data\\lib\\'):
-            print("Initialization failed.")
-            raise FileNotFoundError("data\\lib\\ found, but '^HIST.xlsx' is missing.")
-
-        if '^GSPC.csv' not in os.listdir(data_path + 'data\\lib\\'):
-            print("Initialization failed.")
-            raise FileNotFoundError("data\\lib\\ found, but '^GSPC.csv' is missing.")
-
-        print(f"Setting the DATA_PATH to {data_path} was successful!")
-
-        self.runtime_messages = runtime_messages
-        self.data_path = data_path + 'data\\'
-        # self.output_path = data_path + 'output\\'
+        self.data_path = connect(data_path, gspc_strict=True, hist_strict=True)
         self.data_path_symbols = [symbol[:-4] for symbol in os.listdir(self.data_path + 'lib\\') if '^' not in symbol]
+        print(f"Setting the data_path to {data_path} was successful!")
+
+        suffix = str(dt.datetime.now()).split('.')[0]
+        suffix = suffix.replace(' ', '_')
+        suffix = suffix.replace(':', '-')
+        os.mkdir(self.data_path + suffix + '\\')
+        self.output_path = self.data_path + suffix + '\\'
 
         self.input_data = {}
         self.data = None
@@ -255,7 +230,6 @@ class BackTest:
         self.index = None
 
         self.t0 = None
-        self.tr = None
         self.runtime = None
 
         self.sd = None
@@ -293,6 +267,7 @@ class BackTest:
         self.parameters = {}
         self.parameter_permutations = []
 
+    @timeit_decorator
     def import_data(self, start_date, end_date, lag, date_range_messages=False):
         """Imports the necessary price data for the defined time period of the backtest.
 
@@ -332,7 +307,6 @@ class BackTest:
             else:
                 lag = dt.timedelta(days=lag)
 
-        self.t0 = time.time()
         self.duration = self.ed - self.sd
         self.dr = pd.date_range(self.sd, self.ed)
         self.edr = pd.date_range(self.sd - lag, self.ed)
@@ -360,10 +334,8 @@ class BackTest:
 
         self.missing_symbols = [s for s in self.constituents.keys() if s not in self.existing_symbols]
 
-        print(f'Importing data...')
         print(f'Constituents in time period: {len(self.constituents.keys())}. '
-              f'Thereof not found in data path: {len(self.missing_symbols)}. ')
-        print(f'Missing symbols: {self.missing_symbols}')
+              f'Thereof not found in data path: {len(self.missing_symbols)}, {self.missing_symbols}')
 
         for symbol in self.existing_symbols:
             file = f"{self.data_path}lib\\{symbol[:-1] if '*' in symbol else symbol}.csv"
@@ -389,9 +361,7 @@ class BackTest:
             if not df.empty:
                 self.input_data[symbol] = df
 
-        if self.runtime_messages:
-            print(f'Data imported:                              ...{(time.time() - self.t0).__round__(2)} sec elapsed.')
-
+    @timeit_decorator
     def generate_signals(self, strategy):
         """Accepts an instance of the :class:`ndxtest.backtest.Strategy` class. Generates and oders the trading signals.
 
@@ -401,15 +371,13 @@ class BackTest:
         :returns: None
         :rtype: NoneType
         """
-        t1, self.tr = time.time(), time.time()
+
+        if not isinstance(strategy, Strategy):
+            raise TypeError("Argument `strategy` must be an instance of ndxtest.backtest.Strategy.")
 
         strategy.data = self.input_data.copy()
         strategy.index = self.input_index.copy()
         self.data = strategy.generate_signals()
-        if self.runtime_messages:
-            print(f'Signals generated:                          ...{(time.time() - t1).__round__(2)} sec elapsed.')
-
-        t1 = time.time()
 
         for symbol, df in self.data.items():
             self.data[symbol] = df.loc[df.index.intersection(self.constituents[symbol]['dr'])]
@@ -421,10 +389,6 @@ class BackTest:
 
         self.trading_days = self.index.index.tolist()
 
-        if self.runtime_messages:
-            print(f'Chopping finished:                          ...{(time.time() - t1).__round__(2)} sec elapsed.')
-        t1 = time.time()
-
         concat_data = pd.concat(self.data.values())
         concat_data.drop(columns=['high', 'low', 'close', 'volume', 'dividends', 'stock_splits'], inplace=True)
         dict_data = {}
@@ -434,7 +398,7 @@ class BackTest:
 
         for symbol, df in concat_data.groupby('symbol'):
             df['entry_signals'] = df['entry_signals'].shift(1)  # trades will be executed on the next day
-            df['exit_signals'] = df['exit_signals'].shift(1)  # trades will be executed on the next day
+            df['exit_signals'] = df['exit_signals'].shift(1)    # trades will be executed on the next day
             df.loc[df.index[-1], ['entry_signals', 'exit_signals', 'score']] = [0, -2,
                                                                                 0]  # adding signals to exit on the last day
             df.dropna(inplace=True)  # dropping NaN values
@@ -445,217 +409,120 @@ class BackTest:
             self.signals[date] = sorted(list(self.signals[date]),
                                         key=lambda signal: signal['entry_signals'] * signal['score'], reverse=True)
 
-        if self.runtime_messages:
-            print(f'Signals ordered:                            ...{(time.time() - t1).__round__(2)} sec elapsed.')
-
-    def eval_signals(self, signals, run_sampling=True):
-        """This function searches the imported data for a specific type of signals and creates a .xlsx report about the
-        immediate price action that is followed by the signals. It is helpful for evalutating the viability of the signals
+    @timeit_decorator
+    def eval_signals(self, strategy):
+        """This function searches the imported data for the signals specified by the strategy. It creates a .xlsx report
+        about the immediate price action following the signals. It helps evaluating the viability of the signals
         generated by the strategy.
 
-        :param ndxtest.backtest.Strategy.IVAR signals: IVAR can be entry_long_conditions, exit_long_conditions, entry_short_conditions or exit_short_conditions.
-        :param bool, default=True run_sampling: If True, will generate a large number of hypothetical trades based on the signal stats.
+        :param ndxtest.backtest.Strategy strategy: A ndxtest.backtest.Strategy object.
         """
 
-        if isinstance(signals, list):
+        if not isinstance(strategy, Strategy):
+            raise TypeError("Argument `strategy` must be an instance of ndxtest.backtest.Strategy.")
 
-            results, random_results = {}, {}
+        strategy_signals = {'entry_long_signals': strategy.entry_long_conditions,
+                            'exit_long_signals': strategy.exit_long_conditions,
+                            'entry_short_signals': strategy.entry_short_conditions,
+                            'exit_short_signals': strategy.exit_short_conditions}
 
-            # scanning for input pattern in symbol dfs
-            for symbol, df in self.input_data.items():
+        with pd.ExcelWriter(self.output_path + 'signal_stats.xlsx') as writer:
 
-                signals = pd.DataFrame()
+            for signal_type, list_of_conditions in strategy_signals.items():
+                results = {}
 
-                for i, element in enumerate(signals):
-                    delta_days, func, index = element  # how will funcs with arguments be handled?
-                    if not index:
-                        # task find more elegant way of column naming?
-                        signals[i] = func(df).shift(-delta_days)
-                    else:
-                        signals[i] = func(self.input_index).shift(-delta_days)
+                for symbol, df in self.input_data.items():
+                    signals = pd.DataFrame()
 
-                cds = signals.loc[signals.T.all()].index.values  # cds = completion days of pattern (=0)
+                    for i, condition in enumerate(list_of_conditions):
+                        delta_days, func, index = condition
+                        if not index:
+                            signals[i] = func(df).shift(-delta_days)
+                        else:
+                            signals[i] = func(self.input_index).shift(-delta_days)
 
-                results[symbol] = pd.DataFrame(data={'cd': cds,
-                                                     'symbol': symbol,
-                                                     'ep': df.shift(-1).loc[cds, 'open'],  # entry price
-                                                     'c': df.shift(-1).loc[cds, 'close'],
-                                                     'c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-1).loc[
-                                                         cds, 'close'],
-                                                     '+1o': df.shift(-2).loc[cds, 'open'],
-                                                     '+1o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[
-                                                         cds, 'open'],
-                                                     '+1c': df.shift(-2).loc[cds, 'close'],
-                                                     '+1c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[
-                                                         cds, 'close'],
-                                                     '+2o': df.shift(-3).loc[cds, 'open'],
-                                                     '+2o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[
-                                                         cds, 'open'],
-                                                     '+2c': df.shift(-3).loc[cds, 'close'],
-                                                     '+2c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[
-                                                         cds, 'close']
-                                                     })
+                    cds = signals.loc[signals.T.all()].index.values  # cds = completion days of pattern (=0)
 
-            d = pd.concat(results, ignore_index=True).sort_values(by='cd')
+                    results[symbol] = pd.DataFrame(data={'cd': cds,
+                                                         'symbol': symbol,
+                                                         'ep': df.shift(-1).loc[cds, 'open'],  # entry price
+                                                         '+1c': df.shift(-1).loc[cds, 'close'],
+                                                         '+1c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-1).loc[
+                                                             cds, 'close'],
+                                                         '+2o': df.shift(-2).loc[cds, 'open'],
+                                                         '+2o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[
+                                                             cds, 'open'],
+                                                         '+2c': df.shift(-2).loc[cds, 'close'],
+                                                         '+2c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-2).loc[
+                                                             cds, 'close'],
+                                                         '+3o': df.shift(-3).loc[cds, 'open'],
+                                                         '+3o_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[
+                                                             cds, 'open'],
+                                                         '+3c': df.shift(-3).loc[cds, 'close'],
+                                                         '+3c_gt_ep': df.shift(-1).loc[cds, 'open'] < df.shift(-3).loc[
+                                                             cds, 'close']
+                                                         })
 
-            if len(d.index) == 0:
-                print('No instances of pattern found!')
-            else:
-                d.dropna(inplace=True)
+                d = pd.concat(results, ignore_index=True).sort_values(by='cd')
 
-                # now generating random results
-                for i, symbol in enumerate(random.choices(list(self.input_data.keys()), k=1000)):
-                    df = self.input_data[symbol]
-                    cd = random.choice(df.index.values)
-                    random_results[i] = {'cd': cd,
-                                         'symbol': symbol,
-                                         'ep': df.shift(-1).loc[cd, 'open'],  # entry price
-                                         'c': df.shift(-1).loc[cd, 'close'],
-                                         'c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-1).loc[
-                                             cd, 'close'],
-                                         '+1o': df.shift(-2).loc[cd, 'open'],
-                                         '+1o_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-2).loc[
-                                             cd, 'open'],
-                                         '+1c': df.shift(-2).loc[cd, 'close'],
-                                         '+1c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-2).loc[
-                                             cd, 'close'],
-                                         '+2o': df.shift(-3).loc[cd, 'open'],
-                                         '+2o_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-3).loc[
-                                             cd, 'open'],
-                                         '+2c': df.shift(-3).loc[cd, 'close'],
-                                         '+2c_gt_ep': df.shift(-1).loc[cd, 'open'] < df.shift(-3).loc[
-                                             cd, 'close']
-                                         }
-                rnd = pd.DataFrame.from_dict(random_results, orient='index').sort_values(by='cd')
-                rnd.dropna(inplace=True)
+                if len(d.index) == 0:
+                    print(f'No {signal_type} found!')
+                    continue
+                else:
+                    d.dropna(inplace=True)
 
-                cols = [('c', 'c_gt_ep'), ('+1o', '+1o_gt_ep'), ('+1c', '+1c_gt_ep'), ('+2o', '+2o_gt_ep'),
-                        ('+2c', '+2c_gt_ep')]
-                stats = {'metric': ['Total count:',
-                                    'T count:',
-                                    'F count:',
-                                    'T %:',
-                                    'F %:',
-                                    'Avg. % change:',
-                                    'Med. % change:',
-                                    'Std. %:',
-                                    'T avg. % change:',
-                                    'T med. % change:',
-                                    'T std. %:',
-                                    'T % change min:',
-                                    'T % change max:',
-                                    'F avg. % change:',
-                                    'F med. % change:',
-                                    'F std. %:',
-                                    'F % change min:',
-                                    'F % change max:',
-                                    ]}
+                    cols = [('+1c', '+1c_gt_ep'), ('+2o', '+2o_gt_ep'), ('+2c', '+2c_gt_ep'), ('+3o', '+3o_gt_ep'),
+                            ('+3c', '+3c_gt_ep')]
+                    stats = {'metric': ['Total count:',
+                                        'Up count:',
+                                        'Down count:',
+                                        'Up %:',
+                                        'Down %:',
+                                        'Avg. % change:',
+                                        'Med. % change:',
+                                        'Std. %:',
+                                        'Up avg. % change:',
+                                        'Up med. % change:',
+                                        'Up std. %:',
+                                        'Up % change min:',
+                                        'Up % change max:',
+                                        'Down avg. % change:',
+                                        'Down med. % change:',
+                                        'Down std. %:',
+                                        'Down % change min:',
+                                        'Down % change max:',
+                                        ]}
 
-                # making stats from the experimental data
-                for price_col, count_col in cols:
-                    fc, tc = d[count_col].value_counts().sort_index().tolist()
-                    pct_change = ((d[price_col] / d['ep']) - 1) * 100
-                    t_pct_change = ((d.loc[d[count_col], price_col] / d.loc[d[count_col], 'ep']) - 1) * 100
-                    f_pct_change = ((d.loc[~d[count_col], price_col] / d.loc[~d[count_col], 'ep']) - 1) * 100
-                    stats[count_col] = [tc + fc,
-                                        tc,
-                                        fc,
-                                        round((tc / (fc + tc) * 100), 2),
-                                        round((fc / (fc + tc) * 100), 2),
-                                        round(pct_change.mean(), 2),
-                                        round(pct_change.median(), 2),
-                                        round(pct_change.std(ddof=1), 2),
-                                        round(t_pct_change.mean(), 2),
-                                        round(t_pct_change.median(), 2),
-                                        round(t_pct_change.std(ddof=1), 2),
-                                        round(t_pct_change.min(), 2),
-                                        round(t_pct_change.max(), 2),
-                                        round(f_pct_change.mean(), 2),
-                                        round(f_pct_change.median(), 2),
-                                        round(f_pct_change.std(ddof=1), 2),
-                                        round(f_pct_change.min(), 2),
-                                        round(f_pct_change.max(), 2)
-                                        ]
-
-                # making stats from random data
-                stats[' '] = ''  # a spaceholder
-                for price_col, count_col in cols:
-                    fc, tc = rnd[count_col].value_counts().sort_index().tolist()
-                    pct_change = ((rnd[price_col] / rnd['ep']) - 1) * 100
-                    t_pct_change = ((rnd.loc[rnd[count_col], price_col] / rnd.loc[rnd[count_col], 'ep']) - 1) * 100
-                    f_pct_change = ((rnd.loc[~rnd[count_col], price_col] / rnd.loc[~rnd[count_col], 'ep']) - 1) * 100
-                    stats[count_col + '_rnd'] = [tc + fc,
-                                                 tc,
-                                                 fc,
-                                                 round((tc / (fc + tc) * 100), 2),
-                                                 round((fc / (fc + tc) * 100), 2),
-                                                 round(pct_change.mean(), 2),
-                                                 round(pct_change.median(), 2),
-                                                 round(pct_change.std(ddof=1), 2),
-                                                 round(t_pct_change.mean(), 2),
-                                                 round(t_pct_change.median(), 2),
-                                                 round(t_pct_change.std(ddof=1), 2),
-                                                 round(t_pct_change.min(), 2),
-                                                 round(t_pct_change.max(), 2),
-                                                 round(f_pct_change.mean(), 2),
-                                                 round(f_pct_change.median(), 2),
-                                                 round(f_pct_change.std(ddof=1), 2),
-                                                 round(f_pct_change.min(), 2),
-                                                 round(f_pct_change.max(), 2)
-                                                 ]
-
-                sampling = {'metric': ['Dist type:',
-                                       'Dist mean:',
-                                       'Dist std:',
-                                       'Std ddof:',
-                                       'Sample size:',
-                                       'Repetitions:',
-                                       'Init. capital:',
-                                       'Commission:',
-                                       'Result min:',
-                                       'Result max:',
-                                       'Result mean:',
-                                       'Result median:',
-                                       'Result std:',
-                                       'P<.05 vs rnd:',
-                                       'P<.01 vs rnd:']}
-                if run_sampling:
-                    # making stats from random data
-
+                    # making stats from the experimental data
                     for price_col, count_col in cols:
-                        dist_m, dist_std = stats[count_col][5], stats[count_col][7]
-                        ddof, ssize, reps, init_cap, comm = 1, 100, 100, 10000, 0.001
-                        sampling_results = []
-                        for i in range(0, reps):
-                            cap = init_cap
-                            for n in np.random.normal(dist_m, dist_std, ssize):
-                                cap = cap - (cap * comm * 2)
-                                cap = cap * (1 + n / 100)
-                            sampling_results.append(cap)
-                        sampling_results = pd.Series(data=sampling_results)
+                        fc, tc = d[count_col].value_counts().sort_index().tolist()
+                        pct_change = ((d[price_col] / d['ep']) - 1) * 100
+                        t_pct_change = ((d.loc[d[count_col], price_col] / d.loc[d[count_col], 'ep']) - 1) * 100
+                        f_pct_change = ((d.loc[~d[count_col], price_col] / d.loc[~d[count_col], 'ep']) - 1) * 100
+                        stats[count_col] = [tc + fc,
+                                            tc,
+                                            fc,
+                                            round((tc / (fc + tc) * 100), 2),
+                                            round((fc / (fc + tc) * 100), 2),
+                                            round(pct_change.mean(), 2),
+                                            round(pct_change.median(), 2),
+                                            round(pct_change.std(ddof=1), 2),
+                                            round(t_pct_change.mean(), 2),
+                                            round(t_pct_change.median(), 2),
+                                            round(t_pct_change.std(ddof=1), 2),
+                                            round(t_pct_change.min(), 2),
+                                            round(t_pct_change.max(), 2),
+                                            round(f_pct_change.mean(), 2),
+                                            round(f_pct_change.median(), 2),
+                                            round(f_pct_change.std(ddof=1), 2),
+                                            round(f_pct_change.min(), 2),
+                                            round(f_pct_change.max(), 2)
+                                            ]
 
-                        sampling[count_col] = ['normal',
-                                               dist_m,
-                                               dist_std,
-                                               ddof,
-                                               ssize,
-                                               reps,
-                                               init_cap,
-                                               comm,
-                                               sampling_results.min(),
-                                               sampling_results.max(),
-                                               sampling_results.mean(),
-                                               sampling_results.median(),
-                                               sampling_results.std(ddof=ddof),
-                                               0,
-                                               0]
+                    d.to_excel(writer, sheet_name=signal_type, index=False)
+                    pd.DataFrame(data=stats).to_excel(writer, sheet_name=signal_type + '_stats', index=False)
 
-                with pd.ExcelWriter('pattern_stats.xlsx') as writer:
-                    d.to_excel(writer, sheet_name='pattern', index=False)
-                    rnd.to_excel(writer, sheet_name='random', index=False)
-                    pd.DataFrame(data=stats).to_excel(writer, sheet_name='stats_pattern_vs_random', index=False)
-                    pd.DataFrame(data=sampling).to_excel(writer, sheet_name='sampling_results', index=False)
-
+    @timeit_decorator
     def run_backtest(self, long_only=False, commission=.001, max_positions=10, initial_equity=10000.00,
                      max_trade_duration=None, stoploss=None, detailed_eqc=True):
         """Executes the backtest and creates several logs in the meantime.
@@ -679,6 +546,12 @@ class BackTest:
         :rtype: None
         """
 
+        if self.output_path is None:
+            suffix = str(dt.datetime.now()).split('.')[0]
+            suffix = suffix.replace(' ', '_')
+            suffix = suffix.replace(':', '-')
+            self.output_path = self.data_path + suffix + '\\'
+
         self.commission = commission
         self.max_positions = max_positions
         self.initial_equity = initial_equity
@@ -687,10 +560,6 @@ class BackTest:
         self.exposure = {}
 
         p = Portfolio(max_positions=max_positions, initial_equity=initial_equity, commission=commission)
-
-        t1 = time.time()
-        if self.runtime_messages:
-            print(f'Running core...')
 
         for date in self.trading_days:
             max_trade_duration_signals = []
@@ -830,102 +699,9 @@ class BackTest:
                                 (self.index.close[-1] - self.index.close[0]) / self.index.close[0]))
                                          ** (1 / (self.duration.days / 365.25)) - 1) * 100).__round__(2)}
 
-        if self.runtime_messages:
-            print(f'Finished:                                   ...{(time.time() - t1).__round__(2)} sec elapsed.')
-            print(
-                f'Time per trading day:                       ...{((time.time() - t1) / len(self.trading_days) * 1000).__round__(2)} ms.')
-
-        self.runtime = (time.time() - self.tr).__round__(2)
-        if self.runtime_messages:
-            print(f'Total runtime ex. data import:              ...{self.runtime} sec.')
-
-    def optimize_strategy(self, strategy, parameters, run_best=True):
-        """Performs parameter optimization on a provided strategy. Not implemented in the current version of ndxtest (0.0.1).
-
-        :param ndxtest.backtest.Strategy strategy: Strategy for signal generation that is supposed to be optimized.
-        :param dict parameters: A dictionary of parameters to optimize.
-        :param bool, default=True run_best: If True, runs the backtest with the best-performing parameters for the strategy.
-
-        :returns: None
-        :rtype: None
-        """
-        if _VERSION == "0.0.1":
-            raise NotImplementedError(f"This feature is currently not implemented! (version: {_VERSION})")
-
-        def frange(x, y, jump):
-            while x <= y:
-                yield float(x)
-                x += decimal.Decimal(jump)
-
-        self.parameters = parameters
-
-        for k in self.parameters.keys():
-            if not parameters[k]:
-                continue
-            if any(isinstance(v, float) for v in parameters[k]):
-                lo, hi, step = tuple(decimal.Decimal(str(x)) for x in parameters[k])
-                self.parameters[k] = [p for p in frange(lo, hi, step)]
-            else:
-                lo, hi, step = parameters[k]
-                self.parameters[k] = [p for p in range(lo, hi + step, step)]
-
-        print(self.parameters)
-
-        permutations = [element for element in itertools.product(*self.parameters.values())]
-        self.parameter_permutations = [{k: v for (k, v) in zip(self.parameters.keys(), comb)} for comb in permutations]
-
-        print(f'There are {len(self.parameter_permutations)} parameter combinations to run.')
-        print(
-            f'Running the optimization will approximately take {(len(self.parameter_permutations) * self.runtime * 1.2).__round__(2)} seconds.')
-        if input(f'Proceed (Y/N): ').upper() == 'Y':
-            self.runtime_messages = False
-            s = []
-            d = pd.DataFrame(columns=list(self.parameters.keys()))
-            for parameters in self.parameter_permutations:
-                self.generate_signals(strategy, parameters)
-                self.run_backtest(long_only=True,
-                                  commission=self.commission,
-                                  max_positions=self.max_positions,
-                                  initial_equity=self.initial_equity,
-                                  max_trade_duration=self.max_trade_duration,
-                                  stoploss=self.stoploss,
-                                  eqc_method='approx')
-
-                print(f'{parameters} --> {self.results["perf"]}')
-
-                s.append(self.results['perf'])
-                d = d.append(parameters, ignore_index=True)
-
-            self.optimization_results = pd.Series(data=s, index=pd.MultiIndex.from_frame(d), name='performance')
-            self.optimization_results.to_csv('output\\optimization_results.csv')
-
-            combs = list(itertools.combinations(list(self.parameters.keys()), 2))
-
-            fig3, axs3 = plt.subplots(1, len(combs), figsize=(9, 9 / len(combs)), gridspec_kw={"wspace": .5})
-            for i, combination in enumerate(combs):
-                hm = self.optimization_results.groupby(list(combination)).mean().unstack()
-                sns.heatmap(hm[::], annot=True, ax=axs3 if len(combs) == 1 else axs3[i], cmap='viridis')
-                mp = [p for p in list(self.parameters.keys()) if p not in combination]
-                axs3.title.set_text(f'Performance') if len(combs) == 1 else axs3[i].title.set_text(
-                    f'Mean of all {mp} runs.')
-
-            plt.savefig("f3.png", dpi=None, facecolor='w', edgecolor='w')
-
-            self.best_parameters = {f'p{i + 1}': val for i, val in enumerate(self.optimization_results.idxmax())}
-            self.opt = True
-
-            if run_best:
-                self.generate_signals(strategy, self.best_parameters)
-                self.run_backtest(long_only=True,
-                                  commission=self.commission,
-                                  max_positions=self.max_positions,
-                                  initial_equity=self.initial_equity,
-                                  max_trade_duration=self.max_trade_duration,
-                                  stoploss=self.stoploss,
-                                  eqc_method='full')
-
+    @timeit_decorator
     def report(self):
-        """Generates .xlsx and .pdf reports of the last run backtest. Saves them in data/output_YYYY-MM-DD_HH-MM-SS (current datetime).
+        """Generates .xlsx and .pdf reports of the last run backtest.
 
         :returns: None
         :rtype: NoneType
@@ -959,39 +735,6 @@ class BackTest:
 
         plt.savefig(self.output_path + "f1.png", dpi=None, facecolor='w', edgecolor='w')
 
-        fig2, axs2 = plt.subplots(1, 3, figsize=(9, 3), gridspec_kw={"wspace": .5})
-        main_corr = self.log_df[['entry_score', 'duration', 'entry_price', 'profitable']]
-        self.correlations['main_corr'] = pd.DataFrame(data=main_corr.corr()['profitable'],
-                                                      index=['entry_score', 'duration', 'entry_price', 'profitable'])
-        axs2[0].title.set_text('General Correlations')
-        sns.heatmap(self.correlations['main_corr'], annot=True, square=False, ax=axs2[0], cmap='viridis')
-
-        entry_corr = pd.DataFrame()
-        entry_corr['mon'] = self.log_df['entry_weekday'] == 1
-        entry_corr['tue'] = self.log_df['entry_weekday'] == 2
-        entry_corr['wed'] = self.log_df['entry_weekday'] == 3
-        entry_corr['thu'] = self.log_df['entry_weekday'] == 4
-        entry_corr['fri'] = self.log_df['entry_weekday'] == 5
-        entry_corr['profitable'] = self.log_df['profitable']
-        self.correlations['entry_corr'] = pd.DataFrame(data=entry_corr.corr()['profitable'],
-                                                       index=['mon', 'tue', 'wed', 'thu', 'fri', 'profitable'])
-        axs2[1].title.set_text('Entry Weekday Correlations')
-        sns.heatmap(self.correlations['entry_corr'], annot=True, square=False, ax=axs2[1], cmap='viridis')
-
-        exit_corr = pd.DataFrame()
-        exit_corr['mon'] = self.log_df['exit_weekday'] == 1
-        exit_corr['tue'] = self.log_df['exit_weekday'] == 2
-        exit_corr['wed'] = self.log_df['exit_weekday'] == 3
-        exit_corr['thu'] = self.log_df['exit_weekday'] == 4
-        exit_corr['fri'] = self.log_df['exit_weekday'] == 5
-        exit_corr['profitable'] = self.log_df['profitable']
-        self.correlations['exit_corr'] = pd.DataFrame(data=exit_corr.corr()['profitable'],
-                                                      index=['mon', 'tue', 'wed', 'thu', 'fri', 'profitable'])
-        axs2[2].title.set_text('Exit Weekday Correlations')
-        sns.heatmap(self.correlations['exit_corr'], annot=True, square=False, ax=axs2[2], cmap='viridis')
-
-        plt.savefig(self.output_path + "f2.png", dpi=None, facecolor='w', edgecolor='w')
-
         class PDF(FPDF):  # A4: w = 210, h = 297
             pass
 
@@ -1008,11 +751,11 @@ class BackTest:
         pdf.ln(140)
         pdf.image(self.output_path + 'f1.png', x=15, y=25, w=180, h=120)
 
-        pdf.cell(w=80, align='', txt=f'Parameters:', ln=0)
-        pdf.cell(w=80, align='', txt=f'{self.best_parameters if self.opt else "not optimized"}', ln=1)
+        # pdf.cell(w=80, align='', txt=f'Parameters:', ln=0)
+        # pdf.cell(w=80, align='', txt=f'{self.best_parameters if self.opt else "not optimized"}', ln=1)
         pdf.cell(w=80, align='', txt=f'Start date:', ln=0)
         pdf.cell(w=80, align='', txt=f'{self.sd.date()}', ln=1)
-        pdf.cell(w=80, align='', txt=f'End date:', ln=0)
+        pdf.cell(w=80, align='', txt=f'End date:', ln=0)#
         pdf.cell(w=80, align='', txt=f'{self.ed.date()}', ln=1)
         pdf.cell(w=80, align='', txt=f"Initial Equity [$]:", ln=0)
         pdf.cell(w=80, align='', txt=f"{self.initial_equity}", ln=1)
@@ -1023,7 +766,7 @@ class BackTest:
         pdf.cell(w=80, align='', txt=f"Performance Strategy [%]:", ln=0)
         pdf.cell(w=80, align='', txt=f"{self.results['perf']}", ln=1)
         pdf.cell(w=80, align='', txt=f"Performance Benchmark [%]:", ln=0)
-        pdf.cell(w=80, align='', txt=f"{self.results['bm_perf']}", ln=1)
+        pdf.cell(w=80, align='', txt=f"{str(self.results['bm_perf'])[:5]}", ln=1)
         pdf.cell(w=80, align='', txt=f"Ann. Performance Strategy [%]:", ln=0)
         pdf.cell(w=80, align='', txt=f"{self.results['ann_perf']}", ln=1)
         pdf.cell(w=80, align='', txt=f"Ann. Performance Benchmark [%]:", ln=0)
@@ -1043,22 +786,8 @@ class BackTest:
         pdf.cell(w=80, align='', txt=f"Profitable trades [%]:", ln=0)
         pdf.cell(w=80, align='', txt=f"{self.results['%profitable']}", ln=1)
 
-        pdf.add_page()
-        # pdf.ln(10)
-        # pdf.cell(w=190, align='C', txt=f"Correlations with profitability of trades:")
-        # pdf.image('output\\f2.png', x=15, y=20, w=180, h=60)
-        if self.opt:
-            pdf.cell(w=190, align='', txt=f"Optimization:")
-            shape = img.imread(self.output_path + 'f3.png').shape
-            pdf.image(self.output_path + 'f3.png', x=10, y=20, w=shape[0] * (160 / shape[0]),
-                      h=shape[1] * (160 / shape[1]))
-
-        pdf.output(self.output_path + 'test.pdf', 'F')
-
+        pdf.output(self.output_path + 'backtest_report.pdf', 'F')
         os.remove(self.output_path + 'f1.png')
-        os.remove(self.output_path + 'f2.png')
-        if self.opt:
-            os.remove(self.output_path + 'f3.png')
 
     def plot_ticker(self, symbol):
         """Plots a candlestick chart for a specific ticker symbol and highlights the signals generated by the strategy.

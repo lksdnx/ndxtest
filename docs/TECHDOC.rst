@@ -82,8 +82,9 @@ Class :class:`ndxtest.utils.Portfolio`
 
 Miscellaneous
 -------------
+.. autofunction:: ndxtest.utils.connect
 .. autofunction:: ndxtest.utils.constituents
-
+.. autofunction:: ndxtest.utils.timeit_decorator
 
 .. toctree::
    :maxdepth: 2

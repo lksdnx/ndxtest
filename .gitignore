@@ -129,9 +129,4 @@ dmypy.json
 .pyre/
 
 # my stuff
-/tree_structure.png
-/tree_structure.svg
-/ndxtest_logo.png
-/ndxtest_logo.svg
-
-/data/lib_backup_2022-08-10/
+/data/lib_backup_[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/

@@ -392,7 +392,7 @@ class LibManager:
         self.data_path = connect(data_path)
         self.symbols_in_lib = [symbol[:-4] for symbol in os.listdir(self.data_path + 'lib\\') if symbol.endswith('.csv')]
 
-    def download_batch(self, symbol_list, period='5y'):
+    def download_batch(self, symbol_list: list, period='5y'):
         """Downloads price data for new symbols from https://finance.yahoo.com/ and performs some formatting.
 
         Creates a new folder data\\downloaded_YYYY-MM-DD\\ where downloaded .csv files are saved.
@@ -407,9 +407,21 @@ class LibManager:
         :rtype: NoneType
         """
 
-        os.mkdir(self.data_path + f'downloaded_{str(dt.datetime.now())[:10]}\\')
+        if not isinstance(symbol_list, list):
+            raise TypeError("Parameter `symbol_list` must be of type `list`.")
+
+        if not isinstance(period, str):
+            raise TypeError("Parameter `period` must be of type `str`.")
+
+        if period not in ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']:
+            raise ValueError("Parameter `period` must be either '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd' or 'max'.")
+
+        if f'downloaded_{str(dt.datetime.now())[:10]}' in os.listdir(self.data_path):
+            pass
+        else:
+            os.mkdir(self.data_path + f'downloaded_{str(dt.datetime.now())[:10]}\\')
+
         for symbol in symbol_list:
-            print(f'Loading {symbol}...')
             try:
                 data = yf.Ticker(symbol)
                 df = data.history(period=period)
@@ -425,19 +437,16 @@ class LibManager:
                 df['low'] = np.float32(df['low'])
                 df['close'] = np.float32(df['close'])
 
-                if any(df.stock_splits.values[-100:]):
-                    print(f'Warning: {symbol} had a stock split in the last 100 trading days.')
-
                 if 0 in df[['open', 'high', 'low', 'close']].values:
                     print(f'Warning: {symbol} contained missing values in price data.')
 
-                print(f"{len(df.index)} records downloaded {symbol}.")
+                print(f"Downloaded {len(df.index)} records for {symbol}.")
 
                 if len(df.index) > 1:
-                    df.to_csv(self.data_path + f'data\\downloaded_{str(dt.datetime.now())[:10]}\\' + f'{symbol}.csv')
+                    df.to_csv(self.data_path + f'downloaded_{str(dt.datetime.now())[:10]}\\' + f'{symbol}.csv')
 
             except KeyError or ValueError or AttributeError:
-                print(f'Error processing {symbol}... (may be delisted)')
+                print(f'Error processing {symbol}... (symbol may be delisted or a name change may have occurred)')
 
     def lib_update(self, index_symbol='^GSPC', period='3mo', period_first_download='5y', new_entries=0, symbols=None):
         """This function updates all `active` symbols in data\\lib\\.
@@ -522,7 +531,7 @@ class LibManager:
                         df.to_csv(self.data_path + f'lib\\{symbol}.csv')
 
                 except KeyError or ValueError or AttributeError:
-                    print(f'Error processing {symbol}... (may be delisted)')
+                    print(f'Error processing {symbol}... (symbol may be delisted or a name change may have occurred)')
 
             else:  # the symbol already has a .csv file in //lib
                 main = pd.read_csv(self.data_path + f'lib\\{symbol}.csv', index_col='date', parse_dates=[0])
@@ -536,7 +545,7 @@ class LibManager:
                     try:
                         df.columns = ['open', 'high', 'low', 'close', 'volume', 'dividends', 'stock_splits']
                     except ValueError:
-                        print(f'Error processing {symbol}... (may be delisted)')
+                        print(f'Error processing {symbol}... (symbol may be delisted or a name change may have occurred)')
 
                     df.insert(0, 'symbol', symbol)
 
@@ -552,7 +561,6 @@ class LibManager:
                         print(f'Processed split by factor of {s} for {symbol}.')
                         main = main.divide([None, s, s, s, s, 1 / s, s, 1])
                         main['symbol'] = symbol
-                        main['volume'] = main['volume'].astype('int64')
 
                     while not approved:
                         if reference_index is None:
@@ -575,7 +583,7 @@ class LibManager:
 
                     if reference_index.identical(df.index):
                         print(f'Appending {len(df.index)} records to {symbol}...')
-                        pd.concat(main, df).to_csv(f'data\\lib\\{symbol}.csv')
+                        pd.concat([main, df]).to_csv(f'data\\lib\\{symbol}.csv')
                     else:
                         print(f'Downloaded data for {symbol} contained following reference_index:')
                         print(df.index)
@@ -583,12 +591,12 @@ class LibManager:
                         print(reference_index)
                         if input(f'Append nevertheless? Y/N:').upper() == 'Y':
                             print(f'Appending {len(df.index)} records to {symbol}...')
-                            pd.concat(main, df).to_csv(f'data\\lib\\{symbol}.csv')
+                            pd.concat([main, df]).to_csv(f'data\\lib\\{symbol}.csv')
                         if input(f'Continue with updating routine? Y/N:').upper() == 'N':
                             breaker = True
 
                 except KeyError or ValueError or AttributeError:
-                    print(f'Error processing {symbol}... (may be delisted)')
+                    print(f'Error processing {symbol}... (symbol may be delisted or a name change may have occurred)')
         return None
 
     def lib_rename_symbol(self, old: str, new: str):

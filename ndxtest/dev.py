@@ -10,9 +10,7 @@ if __name__ == "__main__":
     # pd.set_option('display.max_columns', None)
 
     lm = LibManager('C:\\Users\\lukas\\PycharmProjects\\spy\\data')
-    lm.lib_update(symbols='BALL')
-
-
+    lm.download_batch(['META', 'AAPL'])
 
     exit()
     # s1

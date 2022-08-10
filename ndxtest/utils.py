@@ -378,6 +378,9 @@ class Portfolio:
 
 class LibManager:
     """This class is the main tool for maintaining and updating the data library.
+
+    :ivar str data_path: The path to the data.
+    :ivar list symbols_in_lib: A list of all symbols found in \\lib.
     """
 
     def __init__(self, data_path):
@@ -387,6 +390,7 @@ class LibManager:
         """
 
         self.data_path = connect(data_path)
+        self.symbols_in_lib = [symbol[:-4] for symbol in os.listdir(self.data_path + 'lib\\') if symbol.endswith('.csv')]
 
     def download_batch(self, symbol_list, period='5y'):
         """Downloads price data for new symbols from https://finance.yahoo.com/ and performs some formatting.
@@ -435,7 +439,7 @@ class LibManager:
             except KeyError or ValueError or AttributeError:
                 print(f'Error processing {symbol}... (may be delisted)')
 
-    def update_lib(self, index_symbol='^GSPC', period='3mo', period_first_download='5y', new_entries=0, symbols=None):
+    def lib_update(self, index_symbol='^GSPC', period='3mo', period_first_download='5y', new_entries=0, symbols=None):
         """This function updates all `active` symbols in data\\lib\\.
 
         Active symbols are read from the from the `histfile`. As of now, the histfile has to be updated manually
@@ -457,7 +461,7 @@ class LibManager:
             in the newest record in the `histfile`. If new entries are added to the histfile BEFORE running
             update_lib, the last row in the histfile will not contain all symbols that need updating. If this is the case,
             increase `new_entries` by 1 for each entry that was added.
-        :param str, default=None symbols: Here, you can provide a list of symbols if your intention is to only update price data for specific symbols.
+        :param list or str, default=None symbols: Here, you can provide a list of symbols if your intention is to only update price data for specific symbols.
             E.g. ['AAPL', 'AMZN'].
 
         :returns: None
@@ -467,7 +471,7 @@ class LibManager:
         the user manual.
         """
 
-        self.data_path = connect(self.data_path, gstrict=True, hstrict=True)
+        self.data_path = connect(self.data_path, gspc_strict=True, hist_strict=True)
 
         from_dir = self.data_path + 'lib\\'
         to_dir = self.data_path + f'\\lib_backup_{str(dt.datetime.now())[:10]}\\'
@@ -478,9 +482,13 @@ class LibManager:
             activesymbols = sorted(list(set(','.join(hist.symbols.values[-(new_entries + 1):]).split(','))))
             # all symbols within 'last_rows' of the histfile are updated
         else:
-            activesymbols = symbols
+            if isinstance(symbols, list):
+                activesymbols = symbols
+            elif isinstance(symbols, str):
+                activesymbols = [symbols]
+            else:
+                raise TypeError("Parameter `symbols` must be of type `list` or `str`.")
 
-        lib = [symbol[:-4] for symbol in os.listdir(self.data_path + 'lib\\') if symbol.endswith('.csv')]
         activesymbols.insert(0, index_symbol)
         approved = False
         breaker = False
@@ -488,7 +496,7 @@ class LibManager:
 
         for symbol in activesymbols:
 
-            if symbol not in lib:  # the symbol has no .csv file in //lib
+            if symbol not in self.symbols_in_lib:  # the symbol has no .csv file in //lib
                 print(f"{symbol} not found in lib, downloading {period_first_download}'s of price data...")
                 try:
                     data = yf.Ticker(symbol)
@@ -567,8 +575,7 @@ class LibManager:
 
                     if reference_index.identical(df.index):
                         print(f'Appending {len(df.index)} records to {symbol}...')
-                        main = main.append(df)
-                        main.to_csv(f'data\\lib\\{symbol}.csv')
+                        pd.concat(main, df).to_csv(f'data\\lib\\{symbol}.csv')
                     else:
                         print(f'Downloaded data for {symbol} contained following reference_index:')
                         print(df.index)
@@ -576,8 +583,7 @@ class LibManager:
                         print(reference_index)
                         if input(f'Append nevertheless? Y/N:').upper() == 'Y':
                             print(f'Appending {len(df.index)} records to {symbol}...')
-                            main = main.append(df)
-                            main.to_csv(f'data\\lib\\{symbol}.csv')
+                            pd.concat(main, df).to_csv(f'data\\lib\\{symbol}.csv')
                         if input(f'Continue with updating routine? Y/N:').upper() == 'N':
                             breaker = True
 
@@ -585,8 +591,8 @@ class LibManager:
                     print(f'Error processing {symbol}... (may be delisted)')
         return None
 
-    def histfile_rename_symbol(self, old, new):
-        """Renames a symbol in the `histfile`.
+    def lib_rename_symbol(self, old: str, new: str):
+        """Renames a symbol in the library and the `histfile`.
 
         :param str old: Old name of the symbol, e.g. 'FB'
         :param str new: New name of the symbol, e.g. 'META'
@@ -595,8 +601,12 @@ class LibManager:
         :rtype: NoneType
         """
 
-        self.data_path = connect(self.data_path, hstrict=True)
+        if not isinstance(old, str) and isinstance(new, str):
+            raise TypeError("Parameters `old` and `new` must be of type `str`.")
 
+        self.data_path = connect(self.data_path, hist_strict=True)
+
+        # renaming in the histfile
         pde.ExcelFormatter.header_style = None
         hist = pd.read_excel(self.data_path + 'lib\\^HIST.xlsx', index_col='date', parse_dates=[0])
         data = []
@@ -614,6 +624,12 @@ class LibManager:
         hist['removed'].replace(old, new, inplace=True)
 
         hist.to_excel(self.data_path + 'lib\\^HIST.xlsx')
+
+        # renaming in the library
+        file = pd.read_csv(self.data_path + f'lib\\{old}.csv', index_col='date', parse_dates=[0])
+        file['symbol'] = new
+        file.to_csv(f'data\\lib\\{new}.csv')
+        os.remove(self.data_path + f'lib\\{old}.csv')
         return None
 
     def histfile_new_entry(self, action: str, symbol: str, date: str or dt.datetime):
@@ -629,7 +645,7 @@ class LibManager:
         For more information on how to maintain the histfile please refer to the user manual.
         """
 
-        self.data_path = connect(self.data_path, hstrict=True)
+        self.data_path = connect(self.data_path, hist_strict=True)
 
         if not isinstance(action, str):
             raise TypeError("Argument `action` must be of type str.")

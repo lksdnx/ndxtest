@@ -1,6 +1,6 @@
 """for development"""
 import datetime as dt
-from ndxtest.utils import connect
+from ndxtest.utils import LibManager
 from ndxtest.backtest import BackTest, Strategy
 from ndxtest.indicators import crossover, rsi, sma, bullish_pin_bar, price_action, green_candle, red_candle
 
@@ -9,6 +9,12 @@ if __name__ == "__main__":
     # pd.set_option('display.max_rows', None)
     # pd.set_option('display.max_columns', None)
 
+    lm = LibManager('C:\\Users\\lukas\\PycharmProjects\\spy\\data')
+    lm.lib_update(symbols='BALL')
+
+
+
+    exit()
     # s1
     # s = Strategy()
     # s.add_entry_long_cond(0, lambda x: crossover(50, rsi(x), 'bullish'))

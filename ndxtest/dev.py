@@ -9,10 +9,8 @@ if __name__ == "__main__":
     # pd.set_option('display.max_rows', None)
     # pd.set_option('display.max_columns', None)
 
-    lm = LibManager('C:\\Users\\lukas\\PycharmProjects\\spy\\data')
-    lm.download_batch(['META', 'AAPL'])
+    # lm = LibManager('C:\\Users\\lukas\\OneDrive\\Desktop')
 
-    exit()
     # s1
     # s = Strategy()
     # s.add_entry_long_cond(0, lambda x: crossover(50, rsi(x), 'bullish'))

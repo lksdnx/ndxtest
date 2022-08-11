@@ -25,10 +25,7 @@ class Strategy:
 
     :ivar dict data: A dictionary containing price data provided by :class:`ndxtest.backtest.BackTest`. Initial value: None
     :ivar pd.Dataframe index: A a pd.Dataframe containing price data of the reference index. Initial value: None
-    :ivar list entry_long_conditions: A list of conditions for entering long positions. Initial value: []
-    :ivar list exit_long_conditions: A list of conditions for exiting long positions. Initial value: []
-    :ivar list entry_short_conditions: A list of conditions for entering short positions. Initial value: []
-    :ivar list exit_short_conditions: A list of conditions for exiting short positions. Initial value: []
+    :ivar dict condition_sets: A dict of lists with conditions for entering and exiting positions. Initial value: {...}
 
     For information on how to use this class please refer to the user manual.
     """
@@ -39,16 +36,16 @@ class Strategy:
         :param dict data: The is data provided when the strategy is provided to the `generate_signals` method of :class:`ndxtest.backtest.BackTest`. Initial value: None
         :param pd.DataFrame index: Is provided when the strategy is provided to the `generate_signals` method of :class:`ndxtest.backtest.BackTest`. Initial value: None
         """
+
         self.data = data
         self.index = index
-        # conditions for entering and exiting long positions
-        self.entry_long_conditions = []
-        self.exit_long_conditions = []
-        # conditions for entering and exiting short positions
-        self.entry_short_conditions = []
-        self.exit_short_conditions = []
+        # conditions for entering (en) and exiting (ex) long (l) and short (s) trades
+        self.condition_sets = {'enl': [],
+                               'exl': [],
+                               'ens': [],
+                               'exs': []}
 
-    def add_entry_long_cond(self, day, condition, use_index=False):
+    def enter_long_if(self, day, condition, use_index=False):
         """Adding an entry condition for long positions.
 
         :param int day: Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
@@ -60,9 +57,9 @@ class Strategy:
         :returns: None
         :rtype: NoneType
         """
-        self.entry_long_conditions.append((day, condition, use_index))
+        self.condition_sets['enl'].append((day, condition, use_index))
 
-    def add_exit_long_cond(self, day, condition, use_index=False):
+    def exit_long_if(self, day, condition, use_index=False):
         """Adding an exit condition for long positions.
 
         :param int day: Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
@@ -74,9 +71,9 @@ class Strategy:
         :returns: None
         :rtype: NoneType
         """
-        self.exit_long_conditions.append((day, condition, use_index))
+        self.condition_sets['exl'].append((day, condition, use_index))
 
-    def add_entry_short_cond(self, day, condition, use_index=False):
+    def enter_short_if(self, day, condition, use_index=False):
         """Adding an entry condition for short positions.
 
         :param int day: Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
@@ -88,9 +85,9 @@ class Strategy:
         :returns: None
         :rtype: NoneType
         """
-        self.entry_short_conditions.append((day, condition, use_index))
+        self.condition_sets['ens'].append((day, condition, use_index))
 
-    def add_exit_short_cond(self, day, condition, use_index=False):
+    def exit_short_if(self, day, condition, use_index=False):
         """Adding an exit condition for short positions.
 
         :param int day: Day (relative to day 0 of signal completion) on which to check for the condition to be fulfilled.
@@ -102,7 +99,7 @@ class Strategy:
         :returns: None
         :rtype: NoneType
         """
-        self.exit_short_conditions.append((day, condition, use_index))
+        self.condition_sets['exs'].append((day, condition, use_index))
 
     def generate_signals(self):
         """Searches in data for signals based on all entry and exit conditions provided to this strategy.
@@ -124,59 +121,28 @@ class Strategy:
         for symbol, df in self.data.items():  # scanning for entry and exit conditions in data
 
             self.data[symbol]['score'] = 0
-            self.data[symbol]['entry_signals'] = 0
-            self.data[symbol]['exit_signals'] = 0
+            self.data[symbol]['enl_signals'] = 0
+            self.data[symbol]['exl_signals'] = 0
+            self.data[symbol]['ens_signals'] = 0
+            self.data[symbol]['exs_signals'] = 0
 
             # intermediate 'index_df' contains the same records as df
             index_df = self.index.loc[df.index.intersection(self.index.index)]
 
-            # entry_long_signals...
-            entry_long = pd.DataFrame()
-            for i, condition in enumerate(self.entry_long_conditions):
-                days, func, use_index = condition
-                if use_index:
-                    entry_long[i] = func(index_df).shift(-days)
-                else:
-                    entry_long[i] = func(df).shift(-days)
+            # processing all signals...
+            for k, v in self.condition_sets.items():
 
-            entry_long_signals = entry_long.loc[entry_long.T.all()].index.values
-            self.data[symbol].loc[entry_long_signals, 'entry_signals'] = 1
+                boolean_array = pd.DataFrame()
 
-            # exit_long_signals...
-            exit_long = pd.DataFrame()
-            for i, condition in enumerate(self.exit_long_conditions):
-                days, func, use_index = condition
-                if use_index:
-                    exit_long[i] = func(index_df).shift(-days)
-                else:
-                    exit_long[i] = func(df).shift(-days)
+                for i, condition in enumerate(v):
+                    days, func, use_index = condition
+                    if use_index:
+                        boolean_array[i] = func(index_df).shift(-days)
+                    else:
+                        boolean_array[i] = func(df).shift(-days)
 
-            exit_long_conditions = exit_long.loc[exit_long.T.all()].index.values
-            self.data[symbol].loc[exit_long_conditions, 'exit_signals'] = -1
-
-            # entry_short_signals...
-            entry_short = pd.DataFrame()
-            for i, condition in enumerate(self.entry_short_conditions):
-                days, func, use_index = condition
-                if use_index:
-                    entry_short[i] = func(index_df).shift(-days)
-                else:
-                    entry_short[i] = func(df).shift(-days)
-
-            entry_short_signals = entry_short.loc[entry_short.T.all()].index.values
-            self.data[symbol].loc[entry_short_signals, 'entry_signals'] = -1
-
-            # exit_short_signals...
-            exit_short = pd.DataFrame()
-            for i, condition in enumerate(self.exit_short_conditions):
-                days, func, use_index = condition
-                if use_index:
-                    exit_short[i] = func(index_df).shift(-days)
-                else:
-                    exit_short[i] = func(df).shift(-days)
-
-            exit_short_conditions = exit_short.loc[exit_short.T.all()].index.values
-            self.data[symbol].loc[exit_short_conditions, 'exit_signals'] = 1
+                signals = boolean_array.loc[boolean_array.T.all()].index.values
+                self.data[symbol].loc[signals, f'{k}_signals'] = 1
 
         return self.data
 
@@ -268,14 +234,14 @@ class BackTest:
         self.parameter_permutations = []
 
     @timeit_decorator
-    def import_data(self, start_date, end_date, lag, date_range_messages=False):
+    def import_data(self, start_date, end_date, lag=200, date_range_messages=False):
         """Imports the necessary price data for the defined time period of the backtest.
 
         :param datetime.datetime or str start_date:
             The start date of the backtest. If weekend or US market closed, the next trading day will be set as start date.
         :param datetime.datetime or str end_date:
             The end date of the backtest. If weekend or US market closed, the next trading day will be set as end date.
-        :param datetime.timedelta or int lag:
+        :param datetime.timedelta or int, default=200 lag:
             A timedelta that is added in front of the start_date. This is necessary for calculating indicators that
             depend on preceding price data such as moving averages among others.
         :param bool date_range_messages:
@@ -393,21 +359,30 @@ class BackTest:
         concat_data.drop(columns=['high', 'low', 'close', 'volume', 'dividends', 'stock_splits'], inplace=True)
         dict_data = {}
 
-        self.alerts = concat_data.loc[(concat_data.index == self.trading_days[-1]) &
-                                      ((concat_data.entry_signals != 0) | (concat_data.exit_signals != 0))]
+        # self.alerts = concat_data.loc[(concat_data.index == self.trading_days[-1]) &
+        #                               ((concat_data.entry_signals != 0) | (concat_data.exit_signals != 0))]
 
         for symbol, df in concat_data.groupby('symbol'):
-            df['entry_signals'] = df['entry_signals'].shift(1)  # trades will be executed on the next day
-            df['exit_signals'] = df['exit_signals'].shift(1)    # trades will be executed on the next day
-            df.loc[df.index[-1], ['entry_signals', 'exit_signals', 'score']] = [0, -2,
-                                                                                0]  # adding signals to exit on the last day
-            df.dropna(inplace=True)  # dropping NaN values
-            dict_data[symbol] = df.loc[(df.entry_signals != 0) | (df.exit_signals != 0)]
+            # trades will be executed on the next day
+            df['enl_signals'] = df['enl_signals'].shift(1)
+            df['exl_signals'] = df['exl_signals'].shift(1)
+            df['ens_signals'] = df['ens_signals'].shift(1)
+            df['exs_signals'] = df['exs_signals'].shift(1)
 
-        for date, df in pd.concat(dict_data.values()).groupby(level=0):
-            self.signals[date] = df.to_dict(orient='records')
-            self.signals[date] = sorted(list(self.signals[date]),
-                                        key=lambda signal: signal['entry_signals'] * signal['score'], reverse=True)
+            # adding signals to exit on the last day
+            df.loc[df.index[-1], ['score', 'enl_signals', 'exl_signals', 'ens_signals', 'exs_signals']] = \
+                [0, 0, -2, 0, -2]  # check!
+
+            # dropping NaN values
+            df.dropna(inplace=True)
+            # dropping emtpy rows
+            dict_data[symbol] = df.loc[(df.enl_signals != 0) | (df.exl_signals != 0) | (df.ens_signals != 0) | (df.exs_signals != 0)]
+
+        for date, values in pd.concat(dict_data.values()).groupby(level=0):
+            # date, df: symbol, score, enl_signals, exl_signals, ens_signals, exs_signals
+
+            self.signals[date] = values.to_dict(orient='records')
+            self.signals[date] = sorted(list(self.signals[date]), key=lambda signal: signal['score'], reverse=True)
 
     @timeit_decorator
     def eval_signals(self, strategy):
@@ -421,10 +396,10 @@ class BackTest:
         if not isinstance(strategy, Strategy):
             raise TypeError("Argument `strategy` must be an instance of ndxtest.backtest.Strategy.")
 
-        strategy_signals = {'entry_long_signals': strategy.entry_long_conditions,
-                            'exit_long_signals': strategy.exit_long_conditions,
-                            'entry_short_signals': strategy.entry_short_conditions,
-                            'exit_short_signals': strategy.exit_short_conditions}
+        strategy_signals = {'entry_long_signals': strategy.condition_sets['enl'],
+                            'exit_long_signals': strategy.condition_sets['exl'],
+                            'entry_short_signals': strategy.condition_sets['ens'],
+                            'exit_short_signals': strategy.condition_sets['exs']}
 
         with pd.ExcelWriter(self.output_path + 'signal_stats.xlsx') as writer:
 
@@ -523,12 +498,10 @@ class BackTest:
                     pd.DataFrame(data=stats).to_excel(writer, sheet_name=signal_type + '_stats', index=False)
 
     @timeit_decorator
-    def run_backtest(self, long_only=False, commission=.001, max_positions=10, initial_equity=10000.00,
+    def run_backtest(self, commission=.001, max_positions=10, initial_equity=10000.00,
                      max_trade_duration=None, stoploss=None, detailed_eqc=True):
         """Executes the backtest and creates several logs in the meantime.
 
-        :param bool, default=False long_only:
-            If True, only long entry and exit signals are considered.
         :param float, default=.001 commission:
             Commission that is paid upon entering/exiting positions.
         :param int, default=10 max_positions:
@@ -567,37 +540,57 @@ class BackTest:
 
             if max_trade_duration is not None and p.positions:
                 current_positions = list(p.long_positions.values()) + list(p.short_positions.values())
+
                 max_trade_duration_violated = \
                     list(filter(lambda position: position['entry_date'] <= date - dt.timedelta(days=max_trade_duration),
                                 current_positions))
-                max_trade_duration_signals = [{'symbol': position['symbol'], 'entry_signals': 0, 'exit_signals': -2,
-                                               'score': 0, 'open': self.data[position['symbol']].loc[date, 'open']}
+
+                max_trade_duration_signals = [{'symbol': position['symbol'],
+                                               'enl_signals': 0,
+                                               'exl_signals': -2,
+                                               'ens_signals': 0,
+                                               'exs_signals': -2,
+                                               'score': 0,
+                                               'open': self.data[position['symbol']].loc[date, 'open']}
                                               for position in max_trade_duration_violated]
 
             if stoploss is not None and p.positions:
                 long_positions, short_positions = list(p.long_positions.values()), list(p.short_positions.values())
+
                 long_stoploss_violated = list(filter(lambda position:
                                                      position['entry_price'] * (1 - stoploss) >
                                                      self.data[position['symbol']].loc[date, 'open'], long_positions))
+
                 short_stoploss_violated = list(filter(lambda position:
                                                       position['entry_price'] * (1 + stoploss) <
                                                       self.data[position['symbol']].loc[date, 'open'], short_positions))
-                stoploss_signals = [{'symbol': position['symbol'], 'entry_signals': 0, 'exit_signals': -2, 'score': 0,
+
+                stoploss_signals = [{'symbol': position['symbol'],
+                                     'enl_signals': 0,
+                                     'exl_signals': -2,
+                                     'ens_signals': 0,
+                                     'exs_signals': -2,
+                                     'score': 0,
                                      'open': self.data[position['symbol']].loc[date, 'open']}
                                     for position in long_stoploss_violated + short_stoploss_violated]
 
             self.signals[date] += max_trade_duration_signals
             self.signals[date] += stoploss_signals
 
-            if self.signals[date]:  # signals for this date must exist
+            # processing exit signals
+            if self.signals[date]:
+
                 for s in [s for s in self.signals[date] if s['symbol'] in p.positions()]:
-                    if s['exit_signals'] in {1, -2} and s['symbol'] in p.short_positions:
+
+                    # exiting short position
+                    if s['exs_signals'] in {1, -2} and s['symbol'] in p.short_positions:
                         p.long(data={'symbol': s['symbol'],
                                      'exit_score': s['score'],
                                      'exit_price': s['open'],
                                      'exit_date': date})
 
-                    if s['exit_signals'] in {-1, -2} and s['symbol'] in p.long_positions:
+                    # exiting long position
+                    if s['exl_signals'] in {1, -2} and s['symbol'] in p.long_positions:
                         p.short(data={'symbol': s['symbol'],
                                       'exit_score': s['score'],
                                       'exit_price': s['open'],
@@ -606,25 +599,29 @@ class BackTest:
                 if date == self.trading_days[-1]:
                     self.signals[date] = []
                 else:
-                    self.signals[date] = list(filter(lambda signal: signal['symbol'] not in p.positions(),
-                                                     self.signals[date]))
+                    self.signals[date] = list(filter(lambda signal: signal['symbol'] not in p.positions(), self.signals[date]))
 
+                # processing entry signals
                 for s in self.signals[date]:
-                    if s['entry_signals'] == 1 and s['symbol'] and p.free_slot():
+
+                    # entering long
+                    if s['enl_signals'] == 1 and s['symbol'] and p.free_slot():
                         s['nshares'] = p.calculate_nshares(s['open'])
                         if s['nshares'] > 0:
                             p.long(data={'symbol': s['symbol'],
-                                         'signal': s['entry_signals'],
+                                         'signal': 1,
                                          'entry_score': s['score'],
                                          'entry_price': s['open'],
                                          'nshares': s['nshares'],
                                          'entry_date': date})
+                            continue  # if enl and ens signals are present enl has precedence
 
-                    if not long_only and s['entry_signals'] == -1 and s['symbol'] and p.free_slot():
+                    # entering short
+                    if s['ens_signals'] == 1 and s['symbol'] and p.free_slot():
                         s['nshares'] = -1 * p.calculate_nshares(s['open'])
                         if s['nshares'] < 0:
                             p.short(data={'symbol': s['symbol'],
-                                          'signal': s['entry_signals'],
+                                          'signal': 1,
                                           'entry_score': s['score'],
                                           'entry_price': s['open'],
                                           'nshares': s['nshares'],
@@ -755,7 +752,7 @@ class BackTest:
         # pdf.cell(w=80, align='', txt=f'{self.best_parameters if self.opt else "not optimized"}', ln=1)
         pdf.cell(w=80, align='', txt=f'Start date:', ln=0)
         pdf.cell(w=80, align='', txt=f'{self.sd.date()}', ln=1)
-        pdf.cell(w=80, align='', txt=f'End date:', ln=0)#
+        pdf.cell(w=80, align='', txt=f'End date:', ln=0)  #
         pdf.cell(w=80, align='', txt=f'{self.ed.date()}', ln=1)
         pdf.cell(w=80, align='', txt=f"Initial Equity [$]:", ln=0)
         pdf.cell(w=80, align='', txt=f"{self.initial_equity}", ln=1)
@@ -788,36 +785,6 @@ class BackTest:
 
         pdf.output(self.output_path + 'backtest_report.pdf', 'F')
         os.remove(self.output_path + 'f1.png')
-
-    def plot_ticker(self, symbol):
-        """Plots a candlestick chart for a specific ticker symbol and highlights the signals generated by the strategy.
-
-        :param str symbol: The ticker symbol to plot, e.g. 'AMZN'
-
-        :returns: None
-        :rtype: NoneType
-        """
-
-        df = self.data[symbol]
-
-        long_entries = df['entry_signals'].replace([0, -1], np.nan)
-        long_exits = df['exit_signals'].replace([0, 1], np.nan)
-        short_entries = df['entry_signals'].replace([0, 1], np.nan)
-        short_exits = df['exit_signals'].replace([0, -1], np.nan)
-
-        long_entries = mpf.make_addplot(long_entries, color='green', panel=2, ylim=(-3, 3), secondary_y=False,
-                                        type="scatter", markersize=20, marker='^', ylabel='Long Signals')
-        long_exits = mpf.make_addplot(long_exits, color='red', panel=2, ylim=(-3, 3), secondary_y=False,
-                                      type="scatter", markersize=20, marker='v')
-        short_entries = mpf.make_addplot(short_entries, color='green', panel=3, ylim=(-3, 3), secondary_y=False,
-                                         type="scatter", markersize=20, marker='^', ylabel='Short Signals')
-        short_exits = mpf.make_addplot(short_exits, color='red', panel=3, ylim=(-3, 3), secondary_y=False,
-                                       type="scatter", markersize=20, marker='v')
-
-        addplts = [long_entries, long_exits, short_entries, short_exits]
-
-        mpf.plot(self.data[symbol], type="candle", style='blueskies', xrotation=45, volume=True,
-                 addplot=addplts, panel_ratios=(1, 0.5, 0.5, 0.5), warn_too_much_data=10000)
 
     def query_missing_records(self, date):
         """Queries, whether any symbols lack price data for a specific date. (for debugging the library)

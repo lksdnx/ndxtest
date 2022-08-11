@@ -1,48 +1,51 @@
-"""for development"""
+"""TUTORIAL"""
 import datetime as dt
+import numpy as np
+import pandas as pd
 from ndxtest.utils import LibManager
 from ndxtest.backtest import BackTest, Strategy
-from ndxtest.indicators import crossover, rsi, sma, bullish_pin_bar, price_action, green_candle, red_candle
+from ndxtest.indicators import crossover, rsi, sma, prev, roc
 
 
 if __name__ == "__main__":
     # pd.set_option('display.max_rows', None)
     # pd.set_option('display.max_columns', None)
 
-    # lm = LibManager('C:\\Users\\lukas\\OneDrive\\Desktop')
+    # lm = LibManager('C:\\Users\\lukas\\PycharmProjects\\spy\\data')
+    # lm.lib_update(symbols='ANTM')
 
-    # s1
-    # s = Strategy()
-    # s.add_entry_long_cond(0, lambda x: crossover(50, rsi(x), 'bullish'))
-    # s.add_entry_long_cond(0, lambda x: x.close > sma(x, 20))
-    # s.add_exit_long_cond(0, lambda x: crossover(sma(x, 20), x.close, 'bearish'))
+    # s1 = Strategy()
+    # s1.enter_long_if(0, lambda x: crossover(50, rsi(x), 'bullish'))
+    # s1.enter_long_if(0, lambda x: x.close > sma(x, 20))
+    # s1.exit_long_if(0, lambda x: crossover(sma(x, 20), x.close, 'bearish'))
 
-    # bt = BackTest('C:\\Users\\lukas\\OneDrive\\Desktop\\')
-    # bt.import_data(start_date='2019-01-01', end_date='2020-12-31', lag=50)
-    # bt.generate_signals(s)
-    # bt.run_backtest()
-    # bt.report()
+    # bt1 = BackTest('C:\\Users\\lukas\\PycharmProjects\\spy\\data')
+    # bt1.import_data(start_date='2019-06-01', end_date='2021-06-01')
+    # bt1.generate_signals(s1)
+    # bt1.run_backtest()
+    # bt1.report()
+    # exit()
 
     # s2
     s2 = Strategy()
-    # entry long if...
-    s2.add_entry_long_cond(-1, lambda x: price_action(x, 'c', 'lt', 'o'))
-    s2.add_entry_long_cond(-1, green_candle)
-    s2.add_entry_long_cond(0, lambda x: rsi(x) > 80)
-    s2.add_entry_long_cond(0, lambda x: x.close > sma(x, 50), True)
-    # exit long if...
-    s2.add_exit_long_cond(0, lambda x: crossover(60, rsi(x), 'bearish'))
-    # enter short if...
-    s2.add_entry_short_cond(-3, red_candle)
-    s2.add_entry_short_cond(-2, red_candle)
-    s2.add_entry_short_cond(-1, red_candle)
-    s2.add_entry_short_cond(0, lambda x: x.close < sma(x, 50), True)
-    # exit short if...
-    s2.add_exit_short_cond(-1, green_candle)
-    s2.add_exit_short_cond(0, green_candle)
+    s2.enter_long_if(0, lambda x: crossover(50, rsi(x), 'bullish'))
+    s2.enter_long_if(0, lambda x: x.close > sma(x, 20))
+    s2.enter_long_if(1, lambda x: x.open > prev(x.close))
+    s2.exit_long_if(0, lambda x: crossover(sma(x, 70), sma(x, 20), 'bearish'))
 
-    bt2 = BackTest('C:\\Users\\lukas\\OneDrive\\Desktop\\')
-    bt2.import_data(start_date='2019-01-01', end_date='2020-12-31', lag=100)
-    bt2.generate_signals(s2)
-    bt2.run_backtest()
-    bt2.report()
+    s2.enter_short_if(0, lambda x: crossover(40, rsi(x), 'bearish'))
+    s2.enter_short_if(0, lambda x: roc(x, 5) < -0.08, True)
+
+    s2.exit_short_if(0, lambda x: roc(x, 10) > 0.1, True)
+
+    # bt2 = BackTest('C:\\Users\\lukas\\PycharmProjects\\spy\\data')
+    # bt2.import_data(start_date='2019-06-01', end_date='2021-06-01')
+    # bt2.generate_signals(s2)
+    # bt2.run_backtest(stoploss=0.10)
+    # bt2.report()
+
+    bt3 = BackTest('C:\\Users\\lukas\\PycharmProjects\\spy\\data')
+    bt3.import_data(start_date='2010-06-01', end_date='2021-12-31')
+    bt3.generate_signals(s2)
+    bt3.run_backtest(stoploss=0.10)
+    bt3.report()

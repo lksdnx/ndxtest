@@ -1,6 +1,12 @@
 Welcome to ndxtest's documentation!
 ===================================
 
+.. image:: images/ndxtest_logo.png
+   :width: 400
+   :alt: Alternative text.
+
+`ndxtest` lets you backtest trading strategies on the S&P 500 index.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -9,6 +15,7 @@ Welcome to ndxtest's documentation!
    MANUAL
    TECHDOC
    HISTORY
+   FUTUREFEATURES
 
 Indices and tables
 ==================

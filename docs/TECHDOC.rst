@@ -55,7 +55,7 @@ Candlesticks and price action
 -----------------------------
 The following functions detect certain types of candlesticks or price actions:
 
-.. autofunction:: ndxtest.indicators.price_action
+.. autofunction:: ndxtest.indicators.prev
 .. autofunction:: ndxtest.indicators.green_candle
 .. autofunction:: ndxtest.indicators.red_candle
 .. autofunction:: ndxtest.indicators.bullish_pin_bar

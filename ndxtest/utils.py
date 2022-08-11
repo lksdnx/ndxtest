@@ -324,7 +324,7 @@ class Portfolio:
             self.invested_capital -= (nshares * data['exit_price']) - (entry_value - current_value)
             del self.cash_from_short_positions[data['symbol']]
 
-            self.logdict[f"{data['exit_date']} {data['symbol']}"] = \
+            self.logdict[f"{str(data['exit_date'])[:10]}_{data['symbol']}"] = \
                 self.create_log_entry(entry_data=self.short_positions[data['symbol']], exit_data=data)
 
             del self.short_positions[data['symbol']]
@@ -338,7 +338,7 @@ class Portfolio:
                         self.commission * data['nshares'] * data['entry_price'])
                 self.commission_paid += self.commission * data['nshares'] * data['entry_price']
                 self.invested_capital += data['nshares'] * data['entry_price']
-                self.logdict[f"{data['entry_date']} {data['symbol']}"] = \
+                self.logdict[f"{str(data['entry_date'])[:10]}_{data['symbol']}"] = \
                     self.create_log_entry(entry_data=self.long_positions[data['symbol']])
 
     def short(self, data):  # closing long position has priority
@@ -359,7 +359,7 @@ class Portfolio:
             self.commission_paid += self.commission * nshares * data['exit_price']
             self.invested_capital -= nshares * (entry_price - data['exit_price'])  # subtracting the P/L
             self.invested_capital -= nshares * data['exit_price']
-            self.logdict[f"{data['exit_date']} {data['symbol']}"] = \
+            self.logdict[f"{str(data['exit_date'])[:10]}_{data['symbol']}"] = \
                 self.create_log_entry(entry_data=self.long_positions[data['symbol']], exit_data=data)
             del self.long_positions[data['symbol']]
         else:  # entering a new short position
@@ -637,7 +637,8 @@ class LibManager:
         file = pd.read_csv(self.data_path + f'lib\\{old}.csv', index_col='date', parse_dates=[0])
         file['symbol'] = new
         file.to_csv(f'data\\lib\\{new}.csv')
-        os.remove(self.data_path + f'lib\\{old}.csv')
+        if new != old:
+            os.remove(self.data_path + f'lib\\{old}.csv')
         return None
 
     def histfile_new_entry(self, action: str, symbol: str, date: str or dt.datetime):

@@ -3,8 +3,6 @@
 import numpy as np
 import pandas as pd
 
-_DTYPE = 'float32'
-
 
 # General Indicators #
 
@@ -21,7 +19,7 @@ def roc(arr, n, input_col='close'):
     """
     if isinstance(arr, pd.DataFrame):
         arr = arr[input_col]
-    return arr.pct_change(periods=n).astype(_DTYPE)
+    return arr.pct_change(periods=n)
 
 
 def sma(arr, n, input_col='close', full_window=True):
@@ -37,7 +35,7 @@ def sma(arr, n, input_col='close', full_window=True):
     """
     if isinstance(arr, pd.DataFrame):
         arr = arr[input_col]
-    return arr.rolling(n, min_periods=n if full_window else 1).mean().astype(_DTYPE)
+    return arr.rolling(n, min_periods=n if full_window else 1).mean()
 
 
 def ema(arr, n, input_col='close', full_window=True):
@@ -53,7 +51,7 @@ def ema(arr, n, input_col='close', full_window=True):
     """
     if isinstance(arr, pd.DataFrame):
         arr = arr[input_col]
-    return arr.ewm(span=n, min_periods=n if full_window else 1).mean().astype(_DTYPE)
+    return arr.ewm(span=n, min_periods=n if full_window else 1).mean()
 
 
 def ssma(arr, n, input_col='close', full_window=True):
@@ -69,7 +67,7 @@ def ssma(arr, n, input_col='close', full_window=True):
     """
     if isinstance(arr, pd.DataFrame):
         arr = arr[input_col]
-    return arr.ewm(alpha=1 / n, min_periods=n if full_window else 1).mean().astype(_DTYPE)
+    return arr.ewm(alpha=1 / n, min_periods=n if full_window else 1).mean()
 
 
 def atr(arr: pd.DataFrame, n=14, full_window=True):
@@ -85,8 +83,8 @@ def atr(arr: pd.DataFrame, n=14, full_window=True):
     if isinstance(arr, pd.DataFrame):
         true_range = np.maximum.reduce([arr.high, arr.close.shift(1)]) - np.minimum.reduce(
             [arr.low, arr.close.shift(1)])
-        true_range = pd.Series(data=true_range, index=arr.index).astype(_DTYPE)
-        average_true_range = true_range.ewm(alpha=1 / n, min_periods=n if full_window else 1).mean().astype(_DTYPE)
+        true_range = pd.Series(data=true_range, index=arr.index)
+        average_true_range = true_range.ewm(alpha=1 / n, min_periods=n if full_window else 1).mean()
         # relative_true_range = (true_range / average_true_range).astype(_DTYPE)
         return average_true_range
     else:
@@ -104,19 +102,19 @@ def adx(arr: pd.DataFrame, n=14, full_window=True):
     :rtype: pd.Series of dtype np.float32.
     """
     if isinstance(arr, pd.DataFrame):
-        plus_dm = (arr.high - arr.high.shift(1)).astype(_DTYPE)
-        minus_dm = (arr.low.shift(1) - arr.low).astype(_DTYPE)
+        plus_dm = (arr.high - arr.high.shift(1))
+        minus_dm = (arr.low.shift(1) - arr.low)
         positive_dm = np.where(np.greater(plus_dm, minus_dm) & np.greater(plus_dm, 0), plus_dm, 0)
-        positive_dm = pd.Series(positive_dm, index=arr.index, dtype=_DTYPE)
+        positive_dm = pd.Series(positive_dm, index=arr.index)
         negative_dm = np.where(np.greater(minus_dm, plus_dm) & np.greater(minus_dm, 0), minus_dm, 0)
-        negative_dm = pd.Series(negative_dm, index=arr.index, dtype=_DTYPE)
+        negative_dm = pd.Series(negative_dm, index=arr.index)
         average_true_range = atr(arr, n, full_window=full_window)
 
         positive_di = (ema(positive_dm, n, full_window=full_window) / average_true_range) * 100
         negative_di = (ema(negative_dm, n, full_window=full_window) / average_true_range) * 100
-        directional_index = (abs(positive_di - negative_di) / (positive_di + negative_di)).astype(_DTYPE) * 100
+        directional_index = (abs(positive_di - negative_di) / (positive_di + negative_di)) * 100
         average_directional_index = \
-            directional_index.ewm(alpha=1 / n, min_periods=n if full_window else 1).mean().astype(_DTYPE)
+            directional_index.ewm(alpha=1 / n, min_periods=n if full_window else 1).mean()
         return average_directional_index
     else:
         raise TypeError("Argument 'arr' must be a pd.DataFrame.")
@@ -132,15 +130,16 @@ def rsi(arr, n=14, input_col='close', full_window=True):
 
     :returns: A pd.Series containing the RSI. Will contain np.nan values if full_window=True.
     :rtype: pd.Series of dtype np.float32.
-
     """
+
     if isinstance(arr, pd.DataFrame):
         arr = arr[input_col]
+
     moves = arr.diff()
-    up_moves = pd.Series(data=np.where(np.greater_equal(moves, 0), moves, 0), index=moves.index).astype(_DTYPE)
-    down_moves = abs(pd.Series(data=np.where(np.greater_equal(0, moves), moves, 0), index=moves.index).astype(_DTYPE))
+    up_moves = pd.Series(data=np.where(np.greater_equal(moves, 0), moves, 0), index=moves.index)
+    down_moves = abs(pd.Series(data=np.where(np.greater_equal(0, moves), moves, 0), index=moves.index))
     rs_index = 100 - (100 / (1 + (up_moves.rolling(n, min_periods=n if full_window else 1).mean() /
-                                  down_moves.rolling(n, min_periods=n if full_window else 1).mean()))).astype(_DTYPE)
+                                  down_moves.rolling(n, min_periods=n if full_window else 1).mean())))
     return rs_index
 
 
@@ -156,9 +155,9 @@ def macd(arr, input_col='close', full_window=True):
     """
     if isinstance(arr, pd.DataFrame):
         arr = arr[input_col]
-    macd_line = arr.ewm(span=12, min_periods=12 if full_window else 1).mean().astype(_DTYPE) - \
-                arr.ewm(span=26, min_periods=26 if full_window else 1).mean().astype(_DTYPE)
-    signal_line = macd_line.ewm(span=9, min_periods=9 if full_window else 1).mean().astype(_DTYPE)
+    macd_line = arr.ewm(span=12, min_periods=12 if full_window else 1).mean() - \
+                arr.ewm(span=26, min_periods=26 if full_window else 1).mean()
+    signal_line = macd_line.ewm(span=9, min_periods=9 if full_window else 1).mean()
     hist = macd_line - signal_line
     return macd_line, signal_line, hist
 
@@ -178,9 +177,9 @@ def bbands(arr, n=20, stdl=2, stdu=2, input_col="close", full_window=True):
     """
     if isinstance(arr, pd.DataFrame):
         arr = arr[input_col]
-    ma = arr.rolling(n, min_periods=n if full_window else 1).mean().astype(_DTYPE)
-    lbb = (ma - arr.rolling(n, min_periods=n if full_window else 1).std() * stdl).astype(_DTYPE)
-    ubb = (ma + arr.rolling(n, min_periods=n if full_window else 1).std() * stdu).astype(_DTYPE)
+    ma = arr.rolling(n, min_periods=n if full_window else 1).mean()
+    lbb = (ma - arr.rolling(n, min_periods=n if full_window else 1).std() * stdl)
+    ubb = (ma + arr.rolling(n, min_periods=n if full_window else 1).std() * stdu)
     return ma, lbb, ubb
 
 
@@ -199,10 +198,10 @@ def static(s, arr):
     return pd.Series(data=s, index=arr.index, dtype=np.int8)
 
 
-def crossover(slow: pd.Series or int, fast: pd.Series, direction: str):
+def crossover(slow: pd.Series or int or float, fast: pd.Series, direction: str):
     """Checks for bullish or bearish crossovers of a faster-moving series through a slower-moving or static series.
 
-    The parameter `slow` can be either a pd.Series or an integer. If an integer is provided it will be converted to
+    The parameter `slow` can be either a pd.Series or an integer. If an integer or float is provided it will be converted to
     a static pd.Series with the index of `fast`.
 
     Examples of usage:
@@ -210,7 +209,7 @@ def crossover(slow: pd.Series or int, fast: pd.Series, direction: str):
     - crossover(sma(arr, 50), sma(arr, 20), 'bullish') -> Bullish crossovers of the 20 period SMA through the 50 period SMA.
     - crossover(50, rsi(arr), 'bearish') -> Bearish crossovers whenever the RSI falls below the 50 level.
 
-    :param pd.Series or int slow: A pd.Series or an integer.
+    :param pd.Series or int or float slow: A pd.Series, an integer or a float.
     :param pd.Series fast: A pd.Series.
     :param str, direction: Must be either 'bullish' or 'bearish'.
 
@@ -222,8 +221,8 @@ def crossover(slow: pd.Series or int, fast: pd.Series, direction: str):
         raise TypeError("Argument 'fast' must be of type pd.Series.")
 
     if not isinstance(slow, pd.Series):
-        if isinstance(slow, int):
-            slow = pd.Series(data=slow, index=fast.index, dtype=np.int8)
+        if isinstance(slow, int) or isinstance(slow, float):
+            slow = pd.Series(data=slow, index=fast.index)
         else:
             raise TypeError("Argument 'slow' must be of type pd.Series or int.")
 
@@ -282,46 +281,19 @@ def intraday_price_crossover(arr: pd.DataFrame, series: pd.Series, direction: st
 # Candlesticks and Price Action #
 
 
-def price_action(arr, prev='c', op='gt', curr='c'):
-    """Versatile function to compare ohlc data of the previous and the current candle.
+def prev(arr):
+    """Simply shifts `arr` by 1. Provides syntactic sugar.
 
-    Examples:
+    :param pd.Series or pd.DataFrame arr: A pd.Series or ps.DataFrame.
 
-    - candle(arr, prev='c', ineq='gt', curr='c') -> True wherever the previous close was greater than the current close.
-    - candle(arr, prev='l', ineq='gt', curr='o') -> True wherever the previous low was greater than the current open (a gap down candle).
-
-    :param pd.DataFrame arr: A pd.DataFrame containing ohlc price data.
-    :param str prev: Datapoint of the previous candle. Can be either 'o', 'h', 'l' or 'c'.
-    :param str op: Inequality operator. Can be either 'gt', 'ge', 'lt' or 'le'.
-    :param str curr: Datapoint of the current candle. Can be either 'o', 'h', 'l' or 'c'.
-
-    :returns: A pd.Series, True wherever the conditions were met.
-    :rtype: pd.Series of dtype bool
+    :returns: A pd.Series or pd.DataFrame, shifted by 1.
+    :rtype: pd.Series or pd.DataFrame
     """
 
-    if not isinstance(prev, str) and isinstance(curr, str) and isinstance(op, str):
-        raise TypeError("Arguments 'prev', 'curr' and 'ineq' must be of type str.")
+    if not isinstance(arr, pd.Series) or isinstance(arr, pd.DataFrame):
+        raise TypeError("Parameter `arr` must be of type `pd.Series` or `pd.DataFrame`.")
 
-    if prev not in ['o', 'h', 'l', 'c']:
-        raise ValueError("Argument 'prev' must be either 'o', 'h', 'l' or 'c'.")
-
-    if curr not in ['o', 'h', 'l', 'c']:
-        raise ValueError("Argument 'curr' must be either 'o', 'h', 'l' or 'c'.")
-
-    if op not in ['gt', 'ge', 'lt', 'le']:
-        raise ValueError("Argument 'curr' must be either 'gt', 'ge', 'lt' or 'le'.")
-
-    ohlc_map = {'o': 'open',
-                'h': 'high',
-                'l': 'low',
-                'c': 'close'}
-    op_map = {
-        'gt': np.greater,
-        'ge': np.greater_equal,
-        'lt': np.less,
-        'le': np.less_equal}
-
-    return op_map[op](arr[ohlc_map[prev]].shift(1), arr[ohlc_map[curr]])
+    return arr.shift(1)
 
 
 def green_candle(arr):
@@ -355,7 +327,6 @@ def bullish_pin_bar(arr, j=3):
 
     - The lower wick of the candle must be at least three (j) times longer than candle body.
     - The lower boundary of the candle-body must be situated in the upper third of the candle.
-    - The body of the candle must be within the body of the previous candle
     - The lower wick of the pin bar must reach a lower low than the previous candle.
 
     :param pd.DataFrame arr: A pd.DataFrame containing ohlc price data.
@@ -367,13 +338,13 @@ def bullish_pin_bar(arr, j=3):
 
     body_length = abs(arr['close'] - arr['open'])
     lower_wick_length = np.minimum(arr['close'], arr['open']) - arr['low']
-    prev_min = np.minimum(arr['close'].shift(1), arr['open'].shift(1))
-    prev_max = np.maximum(arr['close'].shift(1), arr['open'].shift(1))
-    body_inside_prev_body = (prev_min < arr['open']) & (arr['open'] < prev_max) & \
-                              (prev_min < arr['close']) & (arr['close'] < prev_max)
+    # prev_min = np.minimum(arr['close'].shift(1), arr['open'].shift(1))
+    # prev_max = np.maximum(arr['close'].shift(1), arr['open'].shift(1))
+    # body_inside_prev_body = (prev_min < arr['open']) & (arr['open'] < prev_max) & \
+    #                           (prev_min < arr['close']) & (arr['close'] < prev_max)
     body_in_upper_third = np.minimum(arr['open'], arr['close']) > (arr['low'] + (2 * arr['high'])) / 3
     wick_lt_prev = arr['low'] < arr['low'].shift(1)
-    return (lower_wick_length > j * body_length) & body_in_upper_third & wick_lt_prev & body_inside_prev_body
+    return (lower_wick_length > j * body_length) & body_in_upper_third & wick_lt_prev
 
 
 def bearish_pin_bar(arr, j=3):
@@ -383,7 +354,6 @@ def bearish_pin_bar(arr, j=3):
 
     - The upper wick of the candle must be at least three (j) times longer than candle body.
     - The upper boundary of the candle-body must be situated in the lower third of the candle.
-    - The body of the candle must be within the body of the previous candle
     - The upper wick of the pin bar must reach a higher high than the previous candle.
 
     :param pd.DataFrame arr: A pd.DataFrame containing ohlc price data.
@@ -395,13 +365,13 @@ def bearish_pin_bar(arr, j=3):
 
     body_length = abs(arr['close'] - arr['open'])
     upper_wick_length = arr['high'] - np.maximum(arr['close'], arr['open'])
-    prev_min = np.minimum(arr['close'].shift(1), arr['open'].shift(1))
-    prev_max = np.maximum(arr['close'].shift(1), arr['open'].shift(1))
-    body_inside_prev_body = (prev_min < arr['open']) & (arr['open'] < prev_max) & \
-                              (prev_min < arr['close']) & (arr['close'] < prev_max)
+    # prev_min = np.minimum(arr['close'].shift(1), arr['open'].shift(1))
+    # prev_max = np.maximum(arr['close'].shift(1), arr['open'].shift(1))
+    # body_inside_prev_body = (prev_min < arr['open']) & (arr['open'] < prev_max) & \
+    #                          (prev_min < arr['close']) & (arr['close'] < prev_max)
     body_in_lower_third = np.maximum(arr['open'], arr['close']) < ((2 * arr['low']) + arr['high']) / 3
     wick_gt_prev = (arr['high'] < arr['high'].shift(1)) & (arr['low'] < arr['low'].shift(-1))
-    return (upper_wick_length > j * body_length) & body_inside_prev_body & body_in_lower_third & wick_gt_prev
+    return (upper_wick_length > j * body_length) & body_in_lower_third & wick_gt_prev
 
 
 def inside_bar(arr):

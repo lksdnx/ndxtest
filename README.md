@@ -87,11 +87,11 @@ on the documentation page.
 
 ### Built With
 
-[<img src="Python 3.9" height="40" src="https://www.python.org/static/img/python-logo.png" width="140"/>][Python-url]
-[<img src="https://numpy.org/images/logo.svg" alt="drawing" width="50"/>][Numpy-url]
+[<img src="Python 3.9" height="40" src="https://github.com/lksdnx/ndxtest/blob/master/docs/images/python_logo.png?raw=true" width="150"/>][Python-url]
+[<img src="https://github.com/lksdnx/ndxtest/blob/master/docs/images/numpy_logo.png?raw=true" alt="drawing" width="120"/>][Numpy-url]
 
-[<img src="https://pandas.pydata.org/static/img/pandas_white.svg" alt="drawing" width="100"/>][Pandas-url]
-[<img src="https://matplotlib.org/_static/images/logo2.svg" alt="drawing" height="45" width="100"/>][Matplotlib-url]
+[<img src="https://github.com/lksdnx/ndxtest/blob/master/docs/images/pandas_logo.png?raw=true" alt="drawing" width="100"/>][Pandas-url]
+[<img src="https://raw.githubusercontent.com/lksdnx/ndxtest/2a8b40f0803a21c347c1e82507ed0ccc072e8c40/docs/images/mpl_logo.svg" alt="drawing" height="45" width="100"/>][Matplotlib-url]
 
 
 <p align="right">(<a href="#top">back to top</a>)</p>

@@ -22,7 +22,8 @@ Installation
 
 - Install Python version 3.9 or higher `here <https://www.python.org/downloads/>`_.
 - Install a code editor of your choice. Google: 'Python IDE'
-- Install `git <https://git-scm.com/downloads>`_ to easily download the data needed for `ndxtest` from the `GitHub <https://github.com/lksdnx/ndxtest>`_ repository.
+- Install `git <https://git-scm.com/downloads>`_ to easily download the required `data <https://github.com/lksdnx/ndxtest/tree/master/data>`_ from the repository.
+- **Allow both Python and git to be added to the ``Path``** during their respective installations.
 
 | Consider first setting up a Python virtual environment as you might not want to
 | install `ndxtest` within your main package library. Anyways... go to the python
@@ -73,13 +74,12 @@ The process involves three steps:
 The index announcements given on spglobal.com will include index additions/removals and mergers/spinoffs.
 
 .. warning::
-   Ticker symbol, name changes can occur as well. These are not always announced by spglobal.
+   Ticker symbol name changes can occur as well. Most time, these are not announced by spglobal.
 
 Lets say that since the last update 'FOO' replaced 'BAR' in the index, 'BAZ' had a rebranding
 and is now trading under ticker symbol 'QUX' and 'JE' acquired (the S&P 500 listed company) 'EZ'
-and is now trading under ticker symbol 'JEEZ'. The following will do the job:
+and is now trading under ticker symbol 'JEEZ'. The following would do the job (do not actually paste this):
 
-DO NOT ACTUALLY PASTE AND EXECUTE THIS:
 | ``lm.histfile_new_entry('add', 'FOO', '2022-06-06')``
 | ``lm.histfile_new_entry('remove', 'BAR', '2022-06-06')``
 | ``lm.lib_rename_symbol('BAZ', 'QUX')``
@@ -95,8 +95,8 @@ since the last update. If the last update was more than 3 months ago, set the `p
 
 ``lm.update_lib(period='3mo', new_entries=5)``
 
-The updating function uses very nice `yfinance <https://pypi.org/project/yfinance/>`_ package.
-which provides an easy interface to the finance.yahoo.com API, from which daily price data can be downloaded for free.
+The updating function uses the very nice `yfinance <https://pypi.org/project/yfinance/>`_ package.
+Yfinance provides an interface to the finance.yahoo.com API, from which daily price data can be downloaded for free.
 
 First, a backup `data\\lib_backup_YYYY-MM-DD` is created. Then, `update_lib` appends new records to all `active`
 symbols in `data\\lib`. By default, 5 years worth of daily price data will be downloaded if a .csv file is not yet present.

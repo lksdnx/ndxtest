@@ -105,9 +105,10 @@ For detailed information on how to install and use `ndxtest` please refer to the
 
 ### Prerequisites
 
-- You need Python. Development was done with Python 3.9.
-- You would need and IDE to work with. 
-- You should install git to easily download the required `data` directory from ndxtest's repository.
+- Install [Python 3.9](https://www.python.org/downloads/) or higher.
+- Install an IDE of your choice to work with. 
+- Install [git](https://git-scm.com/downloads) to easily download the required [data](https://github.com/lksdnx/ndxtest/tree/master/data) directory from the repository.
+- **Allow both Python and git to be added to the ``Path``** during their respective installations.
 
 ### Installation
 

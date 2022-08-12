@@ -7,3 +7,4 @@ matplotlib>=3.4.2
 fpdf>=1.7.2
 twine>=1.13.0
 sphinx>=5.1.1
+openpyxl>=3.0.7

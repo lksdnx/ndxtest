@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-# del build -Recurse; del dist -Recurse; del sp_test.egg-info -Recurse
+# del build -Recurse; del dist -Recurse; del ndxtest.egg-info -Recurse
 # py setup.py sdist bdist_wheel
 
 # uploading to test pypi
@@ -8,6 +8,9 @@ from setuptools import setup, find_packages
 
 # installing from test pypi
 # pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ndxtest
+
+# uploading to pypi
+# twine upload dist/*
 
 
 with open("README.md", "r") as readme_file:
@@ -17,11 +20,12 @@ requirements = ["numpy>=1.21.0",
                 "pandas>=1.3.0",
                 "yfinance>=0.1.74",
                 "matplotlib>=3.4.2",
-                "fpdf>=1.7.2"]
+                "fpdf>=1.7.2",
+                "openpyxl>=3.0.7"]
 
 # deleted sphinx from here
 
-setup(name="ndxtest", version="0.0.4",
+setup(name="ndxtest", version="0.0.1",
       author="lksdnx",
       author_email="lukas.dnx@gmail.com",
       description="ndxtest lets you test trading strategies on the S&P 500.",

@@ -64,7 +64,7 @@ Create a new .py file in your code editor and
 
 This will raise errors if the required directories and contents are not found in the path.
 
-As of now, the updating process is not fully automated...
+As of now, the updating process is not fully automated.
 The process involves three steps:
 
 1. Checking for S&P index announcements on `www.spglobal.com <https://www.spglobal.com/spdji/en/indices/equity/sp-500/#news-research>`_.

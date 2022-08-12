@@ -5,4 +5,4 @@ History
    :maxdepth: 2
 
 Version: 0.0.1
-    Released on PyPI: 2020-05-15
+    Was Released on PyPI on 2022-08-12!

@@ -8,12 +8,12 @@ In general, the goal of future releases of `ndxtest` will be to generalise the p
 same time increase code-stability and ease of use. There are 1000 large and small things that could be done.
 Below is an incomplete list of them with descending importance.
 
-- Implementing a scoring mechanism for signals.
+- Implementing a scoring mechanism for signals (work in progress).
 - Working on :class:`ndxtest.Strategy` to increase its flexibility. The fact that currently all elementary conditions
   are chained with the & operator is actually a limitation. It would be nice to be able to have arbitrary independent sets
   of conditions for e.g. entering long positions.
 - Covering the whole codebase with unit-tests.
-- Implementing parameter optimization for strategies (this is work in progress and will probably be part of 0.0.2).
+- Implementing parameter optimization for strategies (work in progress).
 - Implementing means to evaluate the immediate price movement that follows a signal without actually running the backtest.
 - Improving performance if the possibility occurs.
 - Generalizing to other timeframes than daily data. (long term)

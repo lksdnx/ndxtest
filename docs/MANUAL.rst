@@ -1,7 +1,8 @@
 User Manual
 ***********
 
-This is the user manual of the **`ndxtest`** package. See also: https://github.com/lksdnx/ndxtest .
+This is the user manual of the **`ndxtest`** package.
+The repository is available on `GitHub <https://github.com/lksdnx/ndxtest>`_
 
 Scope and Limitations
 ---------------------
@@ -19,9 +20,9 @@ simple for users.
 Installation
 ------------
 
-- Install Python version 3.9 or higher from https://www.python.org/downloads/
+- Install Python version 3.9 or higher `here <https://www.python.org/downloads/>`_.
 - Install a code editor of your choice. Google: 'Python IDE'
-- Install `git` from https://git-scm.com/downloads to easily download the data needed for `ndxtest` from the GitHub repository.
+- Install `git <https://git-scm.com/downloads>`_ to easily download the data needed for `ndxtest` from the `GitHub <https://github.com/lksdnx/ndxtest>`_ repository.
 
 | Consider first setting up a Python virtual environment as you might not want to
 | install `ndxtest` within your main package library. Anyways... go to the python
@@ -40,7 +41,7 @@ More on that later, however, new versions of the data will be available every ot
 | ``cd ndxtest``
 | ``git sparse-checkout set data``
 
-| This will download the folder `data` folder https://github.com/lksdnx/ndxtest .
+| This will download the `data <https://github.com/lksdnx/ndxtest/tree/master/data>`_ from the GitHub repo.
 | You can delete the .git folder after. Keep the data.
 
 Updating the Library
@@ -65,8 +66,8 @@ This will raise errors if the required directories and contents are not found in
 As of now, the updating process is not fully automated...
 The process involves three steps:
 
-1. Checking for S&P index announcements on https://www.spglobal.com/spdji/en/indices/equity/sp-500/#news-research
-2. Updating `data\\lib\\^HIST.xlsx` (the `histfile`)
+1. Checking for S&P index announcements on `www.spglobal.com <https://www.spglobal.com/spdji/en/indices/equity/sp-500/#news-research>`_.
+2. Updating `data\\lib\\^HIST.xlsx` (the `histfile`).
 3. Running the update. Takes about 5 min., during which you need to sit in front of the screen because user input may be required.
 
 The index announcements given on spglobal.com will include index additions/removals and mergers/spinoffs.
@@ -94,7 +95,7 @@ since the last update. If the last update was more than 3 months ago, set the `p
 
 ``lm.update_lib(period='3mo', new_entries=5)``
 
-The updating function uses the yfinance package: https://pypi.org/project/yfinance/
+The updating function uses very nice `yfinance <https://pypi.org/project/yfinance/>`_ package.
 which provides an easy interface to the finance.yahoo.com API, from which daily price data can be downloaded for free.
 
 First, a backup `data\\lib_backup_YYYY-MM-DD` is created. Then, `update_lib` appends new records to all `active`
@@ -123,6 +124,8 @@ The data provided by finance.yahoo includes stock splits, which are automaticall
 
 Building a Strategy
 -------------------
+
+A script (`tutorial.py`) containing all the lines of code hereafter exists in the `docs <https://github.com/lksdnx/ndxtest/tree/master/docs>`_ of the repo.
 
 Now that the data is up to date we can build a first strategy. Strategies are built using :class:`ndxtest.utils.Strategy`
 as well as some of the indicator functions found in :mod:`ndxtest.indicators`. An instantiated Strategy object has to

@@ -1,6 +1,8 @@
 Welcome to ndxtest's documentation!
 ===================================
 
+**pip install ndxtest**
+
 .. image:: images/ndxtest_logo.png
    :width: 400
    :alt: Alternative text.

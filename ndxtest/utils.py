@@ -3,7 +3,6 @@ from collections import OrderedDict
 import datetime as dt
 from distutils.dir_util import copy_tree
 import functools
-import math
 import numpy as np
 import os
 import pandas as pd

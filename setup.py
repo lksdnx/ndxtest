@@ -11,19 +11,17 @@ requirements = ["numpy>=1.21.0",
                 "pandas>=1.3.0",
                 "yfinance>=0.1.74",
                 "matplotlib>=3.4.2",
-                "mplfinance>=0.12.9b1",
-                "fpdf>=1.7.2",
-                "seaborn>=0.11.2",
-                "scipy>=1.7.0",
-                "sphinx>=5.1.1"]
+                "fpdf>=1.7.2"]
 
-setup(name="ndxtest", version="0.0.3",
+# deleted sphinx from here
+
+setup(name="ndxtest", version="0.0.4",
       author="lksdnx",
       author_email="lukas.dnx@gmail.com",
-      description="A python newbies package to test trading strategies on the S&P 500.",
+      description="ndxtest lets you test trading strategies on the S&P 500.",
       long_description=readme,
       long_description_content_type="text/markdown",
-      url="https://github.com/lksndx/spy/",
+      url="https://github.com/lksndx/ndxtest/",
       packages=find_packages(),
       install_requires=requirements,
       classifiers=["Programming Language :: Python :: 3.9", "License :: OSI Approved :: MIT License"]

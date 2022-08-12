@@ -3,19 +3,12 @@
 """
 
 import os
-import matplotlib.pyplot as plt
-import matplotlib.image as img
+import datetime as dt
 import numpy as np
 import pandas as pd
-import decimal
-import itertools
+import matplotlib.pyplot as plt
 from collections import OrderedDict, defaultdict
 from ndxtest.utils import Portfolio, constituents, connect, timeit_decorator
-import time
-import datetime as dt
-import mplfinance as mpf
-import random
-import seaborn as sns
 from fpdf import FPDF
 
 
@@ -599,6 +592,7 @@ class BackTest:
                 if date == self.trading_days[-1]:
                     self.signals[date] = []
                 else:
+                    # all symbols with existing positions are already filtered out here
                     self.signals[date] = list(filter(lambda signal: signal['symbol'] not in p.positions(), self.signals[date]))
 
                 # processing entry signals

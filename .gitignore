@@ -130,3 +130,4 @@ dmypy.json
 
 # my stuff
 /data/lib_backup_[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+dev.py

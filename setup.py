@@ -2,7 +2,13 @@ from setuptools import setup, find_packages
 
 # del build -Recurse; del dist -Recurse; del sp_test.egg-info -Recurse
 # py setup.py sdist bdist_wheel
+
+# uploading to test pypi
 # twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+
+# installing from test pypi
+# pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple ndxtest
+
 
 with open("README.md", "r") as readme_file:
     readme = readme_file.read()

@@ -22,7 +22,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/lksdnx/ndxtest">
-    <img src="https://github.com/lksdnx/ndxtest/blob/master/docs/images/ndxtest_logo.png?raw=true" alt="drawing" width="300"/>
+    <img src="https://github.com/lksdnx/ndxtest/blob/master/docs/images/ndxtest_logo.svg?raw=true" alt="drawing" width="300"/>
   </a>
 
   <p align="center">

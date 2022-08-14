@@ -87,14 +87,7 @@ on the documentation page.
 
 ### Built With
 
-[<img src="https://github.com/lksdnx/ndxtest/blob/master/docs/images/python_logo.png?raw=true" width="150"/>][Python-url]
-
-[<img src="https://github.com/lksdnx/ndxtest/blob/master/docs/images/pandas_logo.png?raw=true" alt="drawing" width="150"/>][Pandas-url]
-
-[<img src="https://github.com/lksdnx/ndxtest/blob/master/docs/images/numpy_logo.png?raw=true" alt="drawing" width="150"/>][Numpy-url]
-
-[<img src="https://raw.githubusercontent.com/lksdnx/ndxtest/2a8b40f0803a21c347c1e82507ed0ccc072e8c40/docs/images/mpl_logo.svg" alt="drawing" width="150"/>][Matplotlib-url]
-
+<img src="https://github.com/lksdnx/ndxtest/blob/master/docs/images/built_with.png?raw=true" width="600"/>
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -216,12 +209,4 @@ educative material on coding. Keep up the great work!
 [issues-url]: https://github.com/lksdnx/ndxtest/issues
 [license-shield]: https://img.shields.io/github/license/lksdnx/ndxtest.svg?style=for-the-badge
 [license-url]: https://github.com/lksdnx/ndxtest/blob/master/LICENSE.txt
-
-[Python]: https://www.python.org/static/img/python-logo.png
-[Python-url]: https://www.python.org/
-[Numpy-url]: https://numpy.org/
-[Pandas]: https://pandas.pydata.org/static/img/pandas_white.svg
-[Pandas-url]: https://pandas.pydata.org/
-[Matplotlib]: https://matplotlib.org/stable/_static/logo2.svg
-[Matplotlib-url]: https://matplotlib.org/
 

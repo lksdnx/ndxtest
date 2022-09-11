@@ -25,7 +25,7 @@ requirements = ["numpy>=1.21.0",
 
 # deleted sphinx from here
 
-setup(name="ndxtest", version="0.0.1",
+setup(name="ndxtest", version="0.0.2",
       author="lksdnx",
       author_email="lukas.dnx@gmail.com",
       description="ndxtest lets you test trading strategies on the S&P 500.",

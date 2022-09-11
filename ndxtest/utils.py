@@ -582,7 +582,7 @@ class LibManager:
 
                     if reference_index.identical(df.index):
                         print(f'Appending {len(df.index)} records to {symbol}...')
-                        pd.concat([main, df]).to_csv(f'data\\lib\\{symbol}.csv')
+                        pd.concat([main, df]).to_csv(self.data_path + f'lib\\{symbol}.csv')
                     else:
                         print(f'Downloaded data for {symbol} contained following reference_index:')
                         print(df.index)
@@ -590,7 +590,7 @@ class LibManager:
                         print(reference_index)
                         if input(f'Append nevertheless? Y/N:').upper() == 'Y':
                             print(f'Appending {len(df.index)} records to {symbol}...')
-                            pd.concat([main, df]).to_csv(f'data\\lib\\{symbol}.csv')
+                            pd.concat([main, df]).to_csv(self.data_path + f'lib\\{symbol}.csv')
                         if input(f'Continue with updating routine? Y/N:').upper() == 'N':
                             breaker = True
 
